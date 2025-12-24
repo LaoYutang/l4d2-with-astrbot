@@ -3,27 +3,22 @@ from astrbot.api.event import filter
 import os
 import asyncio
 from .l4d2_query import L4D2Server
+from .config_manager import ConfigManager
 
 @register("l4d2_query", "YourName", "L4D2服务器查询插件", "1.0.0")
 class L4D2Plugin(Star):
-    def __init__(self, context: Context, config: AstrBotConfig):
+    def __init__(self, context: Context):
         super().__init__(context)
-        self.config = config
+        self.config_path = os.path.join(os.path.dirname(__file__), "config.json")
+        self.cfg = ConfigManager(self.config_path)
 
     def _get_group_config(self, event: AstrMessageEvent):
         """获取当前群的配置"""
-        group_configs = self.config.get("group_configs", [])
-        if not group_configs:
-            return None
-            
         try:
             current_group = getattr(event.message_obj, "group_id", None)
             if not current_group:
                 return None
-                
-            for conf in group_configs:
-                if str(conf.get("group_id")) == str(current_group):
-                    return conf
+            return self.cfg.get_group_config(str(current_group))
         except:
             pass
         return None
