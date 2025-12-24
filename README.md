@@ -1,9 +1,43 @@
-# helloworld
+# L4D2 Server Query Plugin for AstrBot
 
-AstrBot 插件模板
+这是一个用于查询 Left 4 Dead 2 (L4D2) 服务器状态的 AstrBot 插件。
 
-A template plugin for AstrBot plugin feature
+## 功能
 
-# 支持
+- **查询单个服务器**: `/查询 [服务器名]`
+  - 显示服务器地图、人数、延迟以及详细玩家列表。
+- **综合查询**: `/综合查询`
+  - 显示所有配置服务器的简略状态（地图、人数、延迟）。
 
-[帮助文档](https://astrbot.app)
+## 安装
+
+1. 将本插件文件夹放入 AstrBot 的 `data/plugins/` 目录下。
+2. 安装依赖:
+   ```bash
+   pip install -r requirements.txt
+   ```
+   或者手动安装 `python-a2s`。
+
+## 配置
+
+插件首次运行后，会在插件目录下生成 `config.json` 文件。请根据需要修改配置。
+
+```json
+{
+    "group_id": 12345678,  // 允许使用的QQ群号，设为0则不限制
+    "servers": [
+        {
+            "name": "主服务器",
+            "address": "127.0.0.1:27015"
+        },
+        {
+            "name": "对抗服",
+            "address": "1.2.3.4:27016"
+        }
+    ]
+}
+```
+
+## 依赖
+
+- `python-a2s`
