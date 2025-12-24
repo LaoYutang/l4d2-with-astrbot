@@ -157,11 +157,28 @@ class L4D2Plugin(Star):
     def _is_admin(self, event: AstrMessageEvent) -> bool:
         """检查发送者是否为管理员或群主"""
         try:
-            # 适配 OneBot V11
-            role = event.message_obj.sender.get("role", "member")
+            role = "member"
+            obj = event.message_obj
+            
+            # 尝试获取 sender
+            sender = None
+            if isinstance(obj, dict):
+                sender = obj.get("sender")
+            elif hasattr(obj, "sender"):
+                sender = getattr(obj, "sender")
+            
+            if sender:
+                if isinstance(sender, dict):
+                    role = sender.get("role", "member")
+                elif hasattr(sender, "role"):
+                    role = getattr(sender, "role")
+            
+            # 打印调试信息，方便排查权限问题
+            print(f"[L4D2Plugin] Debug - User Role: {role}")
+            
             return role in ["admin", "owner"]
-        except:
-            # 如果无法获取 role，默认拒绝
+        except Exception as e:
+            print(f"[L4D2Plugin] Error checking admin permission: {e}")
             return False
 
     @filter.regex(r"^重启\s*(.+)$")
