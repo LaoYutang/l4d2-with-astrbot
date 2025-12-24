@@ -38,3 +38,17 @@ class L4D2Server:
             return [{"name": p.name, "score": p.score, "duration": p.duration} for p in players if p.name]
         except Exception as e:
             return None
+
+    def restart(self, password: str) -> str:
+        """通过 RCON 重启服务器 (发送 restart 指令)"""
+        import valve.rcon
+        try:
+            # RCON 默认端口通常与游戏端口相同，但有时不同。这里假设相同。
+            # timeout 设置为 5 秒
+            with valve.rcon.RCON((self.ip, self.port), password, timeout=5) as rcon:
+                # 发送 restart 指令
+                # 注意：restart 指令通常重启当前地图/回合。如果是想关闭服务器进程，可能需要 quit
+                response = rcon.execute("restart")
+                return f"指令已发送。服务器响应: {response}"
+        except Exception as e:
+            return f"RCON 操作失败: {e}"

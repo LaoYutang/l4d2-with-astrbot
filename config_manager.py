@@ -15,7 +15,11 @@ class ConfigManager:
                     {
                         "group_id": 12345678,
                         "servers": [
-                            {"name": "示例服务器", "address": "127.0.0.1:27015"}
+                            {
+                                "name": "示例服务器", 
+                                "address": "127.0.0.1:27015",
+                                "rcon_password": "your_rcon_password_here" # 可选，用于重启服务器
+                            }
                         ]
                     }
                 ]

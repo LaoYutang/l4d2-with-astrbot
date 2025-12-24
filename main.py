@@ -153,3 +153,56 @@ class L4D2Plugin(Star):
             return (True, info['player_count'], info['max_players'], f"[{server.name}] {info['server_name']} {info['player_count']}/{info['max_players']}")
         else:
             return (False, 0, 0, f"[{server.name}] 离线或无法连接")
+
+    def _is_admin(self, event: AstrMessageEvent) -> bool:
+        """检查发送者是否为管理员或群主"""
+        try:
+            # 适配 OneBot V11
+            role = event.message_obj.sender.get("role", "member")
+            return role in ["admin", "owner"]
+        except:
+            # 如果无法获取 role，默认拒绝
+            return False
+
+    @filter.regex(r"^重启\s*(.+)$")
+    async def restart_server(self, event: AstrMessageEvent):
+        """重启指定服务器。用法：重启 [服务器名]"""
+        if not self._is_admin(event):
+            yield event.plain_result("权限不足：仅管理员或群主可执行此操作。")
+            return
+
+        group_conf = self._get_group_config(event)
+        if not group_conf:
+            return
+
+        server_name = event.message_str.replace("重启", "", 1).strip()
+        target_name = server_name.replace(" ", "")
+        
+        if not target_name:
+            yield event.plain_result("请输入服务器名称，例如：重启 主服务器")
+            return
+
+        servers = group_conf.get("servers", [])
+        server_config = None
+        for s in servers:
+            if s.get("name", "").replace(" ", "") == target_name:
+                server_config = s
+                break
+        
+        if not server_config:
+            # 未找到服务器，静默返回
+            return
+
+        rcon_password = server_config.get("rcon_password")
+        if not rcon_password:
+            yield event.plain_result(f"服务器 {server_config['name']} 未配置 RCON 密码，无法执行重启。")
+            return
+
+        server = L4D2Server(server_config["name"], server_config["address"])
+        
+        yield event.plain_result(f"正在尝试重启 {server_config['name']}...")
+        
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(None, server.restart, rcon_password)
+        
+        yield event.plain_result(result)
