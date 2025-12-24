@@ -4,3 +4,21 @@ desc: 查询L4D2服务器状态，支持详细查询和综合查询。
 version: v1.0.0
 author: YourName
 repo: https://github.com/YourName/l4d2-astrbot-plugin
+config:
+  group_id:
+    type: number
+    default: 0
+    desc: '允许使用的QQ群号，设为0则不限制'
+  servers:
+    type: list
+    default: []
+    desc: '服务器列表'
+    item:
+      type: object
+      properties:
+        name:
+          type: string
+          desc: '服务器名称'
+        address:
+          type: string
+          desc: '服务器地址 (IP:Port)'

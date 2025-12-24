@@ -3,27 +3,24 @@ from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 import os
 import asyncio
-from .config_manager import ConfigManager
 from .l4d2_query import L4D2Server
 
 @register("l4d2_query", "YourName", "L4D2服务器查询插件", "1.0.0")
 class L4D2Plugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
-        self.config_path = os.path.join(os.path.dirname(__file__), "config.json")
-        self.cfg = ConfigManager(self.config_path)
+        # 配置将由 AstrBot 自动加载到 self.context.config
+        # 默认配置应在 metadata.yaml 中定义
 
     async def _check_group(self, event: AstrMessageEvent) -> bool:
         """检查是否在允许的群组中"""
-        allowed_group = self.cfg.get_group_id()
+        config = self.context.config or {}
+        allowed_group = config.get("group_id", 0)
+        
         if not allowed_group:
             return True # 未配置群号，默认允许所有
         
-        # 尝试获取群号，具体API可能因版本而异，这里尝试通用获取方式
-        # 假设 event.message_obj.group_id 存在
         try:
-            # 不同的适配器可能有不同的字段，这里做一个简单的尝试
-            # 比如 event.message_obj.group_id 或者 event.session.group_id
             current_group = getattr(event.message_obj, "group_id", None)
             if current_group and str(current_group) == str(allowed_group):
                 return True
@@ -31,6 +28,17 @@ class L4D2Plugin(Star):
             pass
         
         return False
+
+    def _get_servers(self):
+        config = self.context.config or {}
+        return config.get("servers", [])
+
+    def _get_server_by_name(self, name: str):
+        servers = self._get_servers()
+        for server in servers:
+            if server.get("name") == name:
+                return server
+        return None
 
     @filter.command("查询")
     async def query_server(self, event: AstrMessageEvent):
@@ -43,14 +51,13 @@ class L4D2Plugin(Star):
             yield event.plain_result("请输入服务器名称，例如：/查询 主服务器")
             return
 
-        server_config = self.cfg.get_server_by_name(server_name)
+        server_config = self._get_server_by_name(server_name)
         if not server_config:
             yield event.plain_result(f"未找到名为 '{server_name}' 的服务器，请检查配置。")
             return
 
         server = L4D2Server(server_config["name"], server_config["address"])
         
-        # 异步执行查询，避免阻塞主线程
         yield event.plain_result(f"正在查询 {server_name}，请稍候...")
         
         loop = asyncio.get_running_loop()
@@ -62,7 +69,6 @@ class L4D2Plugin(Star):
 
         players = await loop.run_in_executor(None, server.query_players)
         
-        # 构建回复消息
         msg = f"服务器: {info['server_name']}\n"
         msg += f"地图: {info['map_name']}\n"
         msg += f"人数: {info['player_count']}/{info['max_players']}\n"
@@ -71,7 +77,6 @@ class L4D2Plugin(Star):
         if players:
             msg += "\n在线玩家:\n"
             for p in players:
-                # 转换时长格式
                 duration = int(p['duration'])
                 m, s = divmod(duration, 60)
                 h, m = divmod(m, 60)
@@ -88,7 +93,7 @@ class L4D2Plugin(Star):
         if not await self._check_group(event):
             return
 
-        servers_config = self.cfg.get_servers()
+        servers_config = self._get_servers()
         if not servers_config:
             yield event.plain_result("未配置任何服务器。")
             return
