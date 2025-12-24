@@ -1,0 +1,28 @@
+{
+  "group_configs": {
+    "type": "list",
+    "description": "群组配置列表。请添加群号和对应的服务器列表。",
+    "default": [],
+    "items": {
+      "group_id": {
+        "type": "int",
+        "description": "QQ群号"
+      },
+      "servers": {
+        "type": "list",
+        "description": "该群的服务器列表",
+        "default": [],
+        "items": {
+          "name": {
+            "type": "string",
+            "description": "服务器名称"
+          },
+          "address": {
+            "type": "string",
+            "description": "服务器地址 (IP:Port)"
+          }
+        }
+      }
+    }
+  }
+}

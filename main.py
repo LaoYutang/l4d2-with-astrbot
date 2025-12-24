@@ -1,49 +1,38 @@
-from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
-from astrbot.api.star import Context, Star, register
-from astrbot.api import logger
+from astrbot.api.all import *
 import os
 import asyncio
 from .l4d2_query import L4D2Server
 
 @register("l4d2_query", "YourName", "L4D2服务器查询插件", "1.0.0")
 class L4D2Plugin(Star):
-    def __init__(self, context: Context):
+    def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
-        # 配置将由 AstrBot 自动加载到 self.context.config
-        # 默认配置应在 metadata.yaml 中定义
+        self.config = config
 
-    async def _check_group(self, event: AstrMessageEvent) -> bool:
-        """检查是否在允许的群组中"""
-        config = self.context.config or {}
-        allowed_group = config.get("group_id", 0)
-        
-        if not allowed_group:
-            return True # 未配置群号，默认允许所有
-        
+    def _get_group_config(self, event: AstrMessageEvent):
+        """获取当前群的配置"""
+        group_configs = self.config.get("group_configs", [])
+        if not group_configs:
+            return None
+            
         try:
             current_group = getattr(event.message_obj, "group_id", None)
-            if current_group and str(current_group) == str(allowed_group):
-                return True
+            if not current_group:
+                return None
+                
+            for conf in group_configs:
+                if str(conf.get("group_id")) == str(current_group):
+                    return conf
         except:
             pass
-        
-        return False
-
-    def _get_servers(self):
-        config = self.context.config or {}
-        return config.get("servers", [])
-
-    def _get_server_by_name(self, name: str):
-        servers = self._get_servers()
-        for server in servers:
-            if server.get("name") == name:
-                return server
         return None
 
     @filter.command("查询")
     async def query_server(self, event: AstrMessageEvent):
         """查询指定L4D2服务器状态。用法：/查询 [服务器名]"""
-        if not await self._check_group(event):
+        group_conf = self._get_group_config(event)
+        if not group_conf:
+            # 如果不在配置的群组中，不响应
             return
 
         server_name = event.message_str.strip()
@@ -51,7 +40,13 @@ class L4D2Plugin(Star):
             yield event.plain_result("请输入服务器名称，例如：/查询 主服务器")
             return
 
-        server_config = self._get_server_by_name(server_name)
+        servers = group_conf.get("servers", [])
+        server_config = None
+        for s in servers:
+            if s.get("name") == server_name:
+                server_config = s
+                break
+        
         if not server_config:
             yield event.plain_result(f"未找到名为 '{server_name}' 的服务器，请检查配置。")
             return
@@ -90,12 +85,13 @@ class L4D2Plugin(Star):
     @filter.command("综合查询")
     async def query_all(self, event: AstrMessageEvent):
         """查询所有配置的L4D2服务器简略状态"""
-        if not await self._check_group(event):
+        group_conf = self._get_group_config(event)
+        if not group_conf:
             return
 
-        servers_config = self._get_servers()
+        servers_config = group_conf.get("servers", [])
         if not servers_config:
-            yield event.plain_result("未配置任何服务器。")
+            yield event.plain_result("本群未配置任何服务器。")
             return
 
         yield event.plain_result("正在查询所有服务器状态...")
