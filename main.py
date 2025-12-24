@@ -1,4 +1,5 @@
 from astrbot.api.all import *
+from astrbot.api.event import filter
 import os
 import asyncio
 from .l4d2_query import L4D2Server
