@@ -3,7 +3,12 @@
     "type": "list",
     "description": "群组配置列表",
     "hint": "点击 + 号添加群组配置",
-    "default": [],
+    "default": [
+      {
+        "group_id": 0,
+        "servers": []
+      }
+    ],
     "items": {
       "type": "object",
       "description": "单个群组配置",
