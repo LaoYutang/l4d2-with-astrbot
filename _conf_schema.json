@@ -1,25 +1,41 @@
 {
   "group_configs": {
     "type": "list",
-    "description": "群组配置列表。请添加群号和对应的服务器列表。",
+    "description": "群组配置列表",
+    "hint": "点击 + 号添加群组配置",
     "default": [],
     "items": {
-      "group_id": {
-        "type": "int",
-        "description": "QQ群号"
-      },
-      "servers": {
-        "type": "list",
-        "description": "该群的服务器列表",
-        "default": [],
-        "items": {
-          "name": {
-            "type": "string",
-            "description": "服务器名称"
-          },
-          "address": {
-            "type": "string",
-            "description": "服务器地址 (IP:Port)"
+      "type": "object",
+      "description": "单个群组配置",
+      "items": {
+        "group_id": {
+          "type": "int",
+          "description": "QQ群号",
+          "hint": "请输入群号",
+          "default": 0
+        },
+        "servers": {
+          "type": "list",
+          "description": "服务器列表",
+          "hint": "该群的服务器列表",
+          "default": [],
+          "items": {
+            "type": "object",
+            "description": "服务器信息",
+            "items": {
+              "name": {
+                "type": "string",
+                "description": "服务器名称",
+                "hint": "例如：主服务器",
+                "default": ""
+              },
+              "address": {
+                "type": "string",
+                "description": "地址",
+                "hint": "IP:Port",
+                "default": ""
+              }
+            }
           }
         }
       }
