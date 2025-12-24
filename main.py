@@ -154,10 +154,10 @@ class L4D2Plugin(Star):
         else:
             return (False, 0, 0, f"[{server.name}] 离线或无法连接")
 
-    def _is_admin(self, event: AstrMessageEvent) -> bool:
-        """检查发送者是否为管理员或群主"""
+    def _check_permission(self, event: AstrMessageEvent, admin_list: list) -> bool:
+        """检查发送者是否在管理员列表中"""
         try:
-            role = "member"
+            user_id = None
             obj = event.message_obj
             
             # 尝试获取 sender
@@ -169,27 +169,31 @@ class L4D2Plugin(Star):
             
             if sender:
                 if isinstance(sender, dict):
-                    role = sender.get("role", "member")
-                elif hasattr(sender, "role"):
-                    role = getattr(sender, "role")
+                    user_id = sender.get("user_id")
+                elif hasattr(sender, "user_id"):
+                    user_id = getattr(sender, "user_id")
             
-            # 打印调试信息，方便排查权限问题
-            print(f"[L4D2Plugin] Debug - User Role: {role}")
+            print(f"[L4D2Plugin] Debug - User ID: {user_id}, Admin List: {admin_list}")
             
-            return role in ["admin", "owner"]
+            if user_id and str(user_id) in [str(uid) for uid in admin_list]:
+                return True
+            
+            return False
         except Exception as e:
-            print(f"[L4D2Plugin] Error checking admin permission: {e}")
+            print(f"[L4D2Plugin] Error checking permission: {e}")
             return False
 
     @filter.regex(r"^重启\s*(.+)$")
     async def restart_server(self, event: AstrMessageEvent):
         """重启指定服务器。用法：重启 [服务器名]"""
-        if not self._is_admin(event):
-            yield event.plain_result("权限不足：仅管理员或群主可执行此操作。")
-            return
-
         group_conf = self._get_group_config(event)
         if not group_conf:
+            return
+
+        # 检查权限
+        admin_users = group_conf.get("admin_users", [])
+        if not self._check_permission(event, admin_users):
+            yield event.plain_result("权限不足：您不在管理员列表中。")
             return
 
         server_name = event.message_str.replace("重启", "", 1).strip()

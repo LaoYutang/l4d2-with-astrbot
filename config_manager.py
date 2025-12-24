@@ -14,6 +14,7 @@ class ConfigManager:
                 "group_configs": [
                     {
                         "group_id": 12345678,
+                        "admin_users": [], # 管理员QQ列表，只有列表中的用户可以使用重启指令
                         "servers": [
                             {
                                 "name": "示例服务器", 
