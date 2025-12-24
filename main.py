@@ -104,16 +104,32 @@ class L4D2Plugin(Star):
 
         results = await asyncio.gather(*tasks)
         
-        msg = "=== 服务器综合查询 ===\n"
-        for res in results:
-            msg += res + "\n"
+        total_servers = len(servers_config)
+        online_servers = 0
+        total_players = 0
+        total_slots = 0
+        
+        server_lines = []
+        for is_online, p_count, max_p, line in results:
+            if is_online:
+                online_servers += 1
+                total_players += p_count
+                total_slots += max_p
+            server_lines.append(line)
+            
+        msg = "=== L4D2 服务器概览 ===\n"
+        msg += f"服务器: {online_servers}/{total_servers} 在线\n"
+        msg += f"人数: {total_players}/{total_slots}\n"
+        msg += "-" * 25 + "\n"
+        for line in server_lines:
+            msg += line + "\n"
         
         yield event.plain_result(msg)
 
-    def _query_server_brief(self, server: L4D2Server) -> str:
+    def _query_server_brief(self, server: L4D2Server):
         """辅助函数：同步查询单个服务器简略信息"""
         info = server.query_info()
         if info:
-            return f"[{server.name}] {info['map_name']} - {info['player_count']}/{info['max_players']}人 (Ping: {info['ping']}ms)"
+            return (True, info['player_count'], info['max_players'], f"[{server.name}] {info['server_name']} {info['player_count']}/{info['max_players']}")
         else:
-            return f"[{server.name}] 离线或无法连接"
+            return (False, 0, 0, f"[{server.name}] 离线或无法连接")
