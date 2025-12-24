@@ -128,6 +128,24 @@ class L4D2Plugin(Star):
         
         yield event.plain_result(msg)
 
+    @filter.regex(r"^(服务器列表|服务器地址|连接指令)$")
+    async def list_servers(self, event: AstrMessageEvent):
+        """列出所有服务器的连接地址"""
+        group_conf = self._get_group_config(event)
+        if not group_conf:
+            return
+
+        servers_config = group_conf.get("servers", [])
+        if not servers_config:
+            yield event.plain_result("本群未配置任何服务器。")
+            return
+
+        msg = "=== 服务器列表 ===\n"
+        for conf in servers_config:
+            msg += f"[{conf['name']}] connect {conf['address']}\n"
+        
+        yield event.plain_result(msg)
+
     def _query_server_brief(self, server: L4D2Server):
         """辅助函数：同步查询单个服务器简略信息"""
         info = server.query_info()
