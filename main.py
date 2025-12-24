@@ -24,7 +24,7 @@ class L4D2Plugin(Star):
         return None
 
     @filter.regex(r"^查询\s*(.+)$")
-    async def query_server(self, event: AstrMessageEvent, *args):
+    async def query_server(self, event: AstrMessageEvent, *args, **kwargs):
         """查询指定L4D2服务器状态。用法：查询 [服务器名]"""
         group_conf = self._get_group_config(event)
         if not group_conf:
@@ -84,7 +84,7 @@ class L4D2Plugin(Star):
         yield event.plain_result(msg)
 
     @filter.regex(r"^综合查询$")
-    async def query_all(self, event: AstrMessageEvent, *args):
+    async def query_all(self, event: AstrMessageEvent, *args, **kwargs):
         """查询所有配置的L4D2服务器简略状态"""
         group_conf = self._get_group_config(event)
         if not group_conf:
@@ -129,7 +129,7 @@ class L4D2Plugin(Star):
         yield event.plain_result(msg)
 
     @filter.regex(r"^(服务器列表|服务器地址|连接指令)$")
-    async def list_servers(self, event: AstrMessageEvent, *args):
+    async def list_servers(self, event: AstrMessageEvent, *args, **kwargs):
         """列出所有服务器的连接地址"""
         group_conf = self._get_group_config(event)
         if not group_conf:
@@ -184,7 +184,7 @@ class L4D2Plugin(Star):
             return False
 
     @filter.regex(r"^重启\s*(.+)$")
-    async def restart_server(self, event: AstrMessageEvent, *args):
+    async def restart_server(self, event: AstrMessageEvent, *args, **kwargs):
         """重启指定服务器。用法：重启 [服务器名]"""
         # 打印调试信息，查看是否有额外参数
         if args:
