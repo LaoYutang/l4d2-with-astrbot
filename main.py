@@ -31,10 +31,13 @@ class L4D2Plugin(Star):
             # 如果不在配置的群组中，不响应
             return
 
-        server_name = event.message_str.strip()
-        if not server_name:
+        # 解析参数，移除指令部分
+        parts = event.message_str.strip().split(maxsplit=1)
+        if len(parts) < 2:
             yield event.plain_result("请输入服务器名称，例如：/查询 主服务器")
             return
+        
+        server_name = parts[1].strip()
 
         servers = group_conf.get("servers", [])
         server_config = None
