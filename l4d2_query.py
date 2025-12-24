@@ -46,9 +46,15 @@ class L4D2Server:
             # RCON 默认端口通常与游戏端口相同，但有时不同。这里假设相同。
             # timeout 设置为 5 秒
             with valve.rcon.RCON((self.ip, self.port), password, timeout=5) as rcon:
-                # 发送 restart 指令
-                # 注意：restart 指令通常重启当前地图/回合。如果是想关闭服务器进程，可能需要 quit
-                response = rcon.execute("restart")
-                return f"指令已发送。服务器响应: {response}"
+                # 发送 _restart 指令 (通常用于彻底重启服务器进程，依赖于服务端插件如 SM)
+                response = rcon.execute("_restart")
+                
+                # 处理响应
+                resp_str = str(response)
+                # 如果响应包含 RCONMessage 对象表示，通常意味着没有文本返回（这是正常的，因为服务器重启了）
+                if not resp_str or "<RCONMessage" in resp_str:
+                    return "指令已发送。服务器正在重启..."
+                
+                return f"指令已发送。服务器响应: {resp_str}"
         except Exception as e:
             return f"RCON 操作失败: {e}"
