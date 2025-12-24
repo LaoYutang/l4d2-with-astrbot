@@ -23,42 +23,44 @@ class L4D2Plugin(Star):
             pass
         return None
 
-    @filter.command("查询")
+    @filter.regex(r"^查询\s*(.+)$")
     async def query_server(self, event: AstrMessageEvent):
-        """查询指定L4D2服务器状态。用法：/查询 [服务器名]"""
+        """查询指定L4D2服务器状态。用法：查询 [服务器名]"""
         group_conf = self._get_group_config(event)
         if not group_conf:
             # 如果不在配置的群组中，不响应
             return
 
         # 解析参数，移除指令部分
-        parts = event.message_str.strip().split(maxsplit=1)
-        if len(parts) < 2:
-            yield event.plain_result("请输入服务器名称，例如：/查询 主服务器")
-            return
+        # regex 保证了开头是 "查询"，后面有内容
+        server_name = event.message_str.replace("查询", "", 1).strip()
+        target_name = server_name.replace(" ", "")
         
-        server_name = parts[1].strip()
+        if not target_name:
+             # 理论上 regex 保证了有内容，但 strip 后可能为空
+            yield event.plain_result("请输入服务器名称，例如：查询 主服务器")
+            return
 
         servers = group_conf.get("servers", [])
         server_config = None
         for s in servers:
-            if s.get("name") == server_name:
+            if s.get("name", "").replace(" ", "") == target_name:
                 server_config = s
                 break
         
         if not server_config:
-            yield event.plain_result(f"未找到名为 '{server_name}' 的服务器，请检查配置。")
+            # 未找到服务器，静默返回
             return
 
         server = L4D2Server(server_config["name"], server_config["address"])
         
-        yield event.plain_result(f"正在查询 {server_name}，请稍候...")
+        yield event.plain_result(f"正在查询 {server_config['name']}，请稍候...")
         
         loop = asyncio.get_running_loop()
         info = await loop.run_in_executor(None, server.query_info)
         
         if not info:
-            yield event.plain_result(f"无法连接到服务器 {server_name}，可能服务器离线或网络问题。")
+            yield event.plain_result(f"无法连接到服务器 {server_config['name']}，可能服务器离线或网络问题。")
             return
 
         players = await loop.run_in_executor(None, server.query_players)
@@ -81,7 +83,7 @@ class L4D2Plugin(Star):
 
         yield event.plain_result(msg)
 
-    @filter.command("综合查询")
+    @filter.regex(r"^综合查询$")
     async def query_all(self, event: AstrMessageEvent):
         """查询所有配置的L4D2服务器简略状态"""
         group_conf = self._get_group_config(event)
