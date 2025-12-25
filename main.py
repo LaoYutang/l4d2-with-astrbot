@@ -277,6 +277,10 @@ class L4D2Plugin(Star):
         msg = f"=== 创意工坊{type_str}解析 ===\n"
         for item in results:
             title = item.get("title", "未知标题")
+            # 清理标题中的换行符
+            if title:
+                title = title.replace("\n", " ").replace("\r", "").strip()
+                
             file_url = item.get("file_url", "")
             filename = item.get("filename", "")
             size = item.get("file_size", "未知大小")
