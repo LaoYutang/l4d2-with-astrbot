@@ -195,12 +195,6 @@ class L4D2Plugin(Star):
         if not group_conf:
             return
 
-        # 检查权限
-        admin_users = group_conf.get("admin_users", [])
-        if not self._check_permission(event, admin_users):
-            yield event.plain_result("权限不足：您不在管理员列表中。")
-            return
-
         server_name = event.message_str.replace("重启", "", 1).strip()
         target_name = server_name.replace(" ", "")
         
@@ -217,6 +211,12 @@ class L4D2Plugin(Star):
         
         if not server_config:
             # 未找到服务器，静默返回
+            return
+
+        # 检查权限
+        admin_users = group_conf.get("admin_users", [])
+        if not self._check_permission(event, admin_users):
+            yield event.plain_result("权限不足：您不在管理员列表中。")
             return
 
         rcon_password = server_config.get("rcon_password")
