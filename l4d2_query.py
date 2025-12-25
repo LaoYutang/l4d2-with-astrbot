@@ -46,7 +46,7 @@ class L4D2Server:
             # RCON 默认端口通常与游戏端口相同，但有时不同。这里假设相同。
             # timeout 设置为 5 秒
             with valve.rcon.RCON((self.ip, self.port), password, timeout=5) as rcon:
-                # 发送 _restart 指令 (通常用于彻底重启服务器进程，依赖于服务端插件如 SM)
+                # 发送 _restart 指令 (通常用于彻底重启服务器进程)
                 response = rcon.execute("_restart")
                 
                 # 处理响应
