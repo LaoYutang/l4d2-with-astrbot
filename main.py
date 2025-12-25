@@ -4,6 +4,7 @@ import os
 import asyncio
 from .l4d2_query import L4D2Server
 from .config_manager import ConfigManager
+from .workshop_utils import WorkshopTools
 
 @register("l4d2_query", "YourName", "L4D2服务器查询插件", "1.0.0")
 class L4D2Plugin(Star):
@@ -11,6 +12,7 @@ class L4D2Plugin(Star):
         super().__init__(context)
         self.config_path = os.path.join(os.path.dirname(__file__), "config.json")
         self.cfg = ConfigManager(self.config_path)
+        self.workshop = WorkshopTools()
 
     def _get_group_config(self, event: AstrMessageEvent):
         """获取当前群的配置"""
@@ -253,3 +255,33 @@ class L4D2Plugin(Star):
             result = "操作超时：连接服务器耗时过长，请检查服务器状态或网络连接。"
         
         yield event.plain_result(result)
+
+    @filter.regex(r"https?://steamcommunity\.com/sharedfiles/filedetails/\?id=(\d+)")
+    async def parse_workshop_link(self, event: AstrMessageEvent, match: re.Match):
+        """解析创意工坊链接"""
+        url = match.group(0)
+        yield event.plain_result("正在解析创意工坊链接，请稍候...")
+        
+        results, type_str = await self.workshop.process_url(url)
+        
+        if not results:
+            yield event.plain_result(f"解析失败: {type_str}")
+            return
+
+        msg = f"=== 创意工坊{type_str}解析 ===\n"
+        for item in results:
+            title = item.get("title", "未知标题")
+            file_url = item.get("file_url", "")
+            filename = item.get("filename", "")
+            size = item.get("file_size", "未知大小")
+            
+            # 简单的文件名清理
+            if filename:
+                filename = filename.replace("\\", "/").split("/")[-1]
+            
+            msg += f"标题: {title}\n"
+            msg += f"文件: {filename} ({size})\n"
+            msg += f"下载: {file_url}\n"
+            msg += "-" * 20 + "\n"
+            
+        yield event.plain_result(msg.strip())
