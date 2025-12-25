@@ -25,8 +25,8 @@ class WorkshopTools:
         first_data = await self._fetch_details([main_id])
         
         if not first_data:
-            # API 失败，尝试 HTML 解析作为 fallback
-            return await self._process_via_html_fallback(main_id)
+            # API 失败
+            return None, "API 请求失败或未返回数据"
 
         item_info = first_data[0]
         
@@ -45,29 +45,7 @@ class WorkshopTools:
         if item_info.get("result") == 1 and item_info.get("file_url"):
             return [item_info], "单品"
 
-        # 如果 API 既没返回 children 也没返回 file_url，尝试 HTML 解析
-        # 有些合集 API 可能不返回 children
-        return await self._process_via_html_fallback(main_id)
-
-    async def _process_via_html_fallback(self, workshop_id: str):
-        """
-        Fallback: 通过爬取 Steam 网页解析合集
-        """
-        is_collection, child_ids = await self._resolve_collection_from_html(workshop_id)
-        
-        if is_collection:
-            if not child_ids:
-                return None, "检测到合集，但无法提取子物品 ID"
-            
-            data = await self._fetch_details(child_ids)
-            if not data:
-                return None, "API 请求失败"
-            
-            valid_results = [item for item in data if item.get("result") == 1]
-            if not valid_results:
-                return None, "未找到有效的文件下载信息"
-            return valid_results, "合集"
-        
+        # 如果 API 既没返回 children 也没返回 file_url
         return None, "无法解析该链接 (非合集或 API 无数据)"
 
     def _extract_id(self, text: str) -> str:
@@ -78,47 +56,6 @@ class WorkshopTools:
         # Fallback to numbers if the text is just numbers (though usually it's a URL)
         # But here we expect a URL mostly.
         return None
-
-    async def _resolve_collection_from_html(self, workshop_id: str):
-        """
-        检查是否为合集，如果是，返回 (True, [id_list])
-        否则返回 (False, [])
-        """
-        steam_url = f"https://steamcommunity.com/sharedfiles/filedetails/?id={workshop_id}"
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(steam_url, headers={"User-Agent": self.headers["User-Agent"]}, timeout=10) as resp:
-                    if resp.status != 200:
-                        self.logger.warning(f"Failed to fetch steam page: {resp.status}")
-                        return False, []
-                    text = await resp.text()
-        except Exception as e:
-            self.logger.error(f"Error fetching steam page: {repr(e)}")
-            return False, []
-        
-        # Check if collection
-        # "Subscribe to all" button usually indicates a collection
-        # Or class="subscribeCollection"
-        if "subscribeCollection" in text or "Subscribe to all" in text:
-            # Extract child IDs
-            # Look for the collectionChildren div
-            children_block_match = re.search(r'<div class="collectionChildren">(.*?)<div class="cleared">', text, re.DOTALL)
-            if children_block_match:
-                block = children_block_match.group(1)
-                # Extract IDs from links like href="...id=123"
-                ids = re.findall(r'id=(\d+)', block)
-                # Remove duplicates and ensure unique
-                ids = list(set(ids))
-                # Remove self ID if present (unlikely in children block but good practice)
-                if workshop_id in ids:
-                    ids.remove(workshop_id)
-                return True, ids
-            
-            # Fallback: try to find all workshopItem divs if collectionChildren not found
-            # This is riskier but might work
-            return True, []
-        
-        return False, []
 
     async def _fetch_details(self, ids: list):
         # 尝试将 ID 转换为整数，避免 API 因类型问题返回 500
@@ -140,7 +77,8 @@ class WorkshopTools:
                         except:
                             pass
                         return None
-                    return await resp.json()
+                    # 强制解析 JSON，忽略 Content-Type (API 有时返回 text/plain)
+                    return await resp.json(content_type=None)
         except Exception as e:
             self.logger.error(f"Error calling downloader API: {repr(e)}")
             return None
