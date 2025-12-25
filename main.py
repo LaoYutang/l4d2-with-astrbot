@@ -146,7 +146,7 @@ class L4D2Plugin(Star):
             yield event.plain_result("本群未配置任何服务器。")
             return
 
-        connect_base_url = group_conf.get("connectBaseUrl")
+        connect_base_url = self.cfg.get_connect_base_url()
         
         msg = "=== 服务器列表 ===\n"
         if connect_base_url:

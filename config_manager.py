@@ -11,6 +11,7 @@ class ConfigManager:
         if not os.path.exists(self.config_path):
             # 创建默认配置
             default_config = {
+                "connectBaseUrl": "", # 可选，一键连接的基础URL，例如 https://steam-connect.laoyutang.cn
                 "group_configs": [
                     {
                         "group_id": 12345678,
@@ -48,3 +49,7 @@ class ConfigManager:
             if str(conf.get("group_id")) == str(group_id):
                 return conf
         return None
+
+    def get_connect_base_url(self) -> str:
+        """获取全局连接基础URL"""
+        return self.config.get("connectBaseUrl", "")
