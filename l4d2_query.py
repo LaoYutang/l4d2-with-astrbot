@@ -43,31 +43,41 @@ class L4D2Server:
         """通过 RCON 重启服务器 (发送 restart 指令)"""
         import valve.rcon
         import socket
-        try:
-            # RCON 默认端口通常与游戏端口相同，但有时不同。这里假设相同。
-            # timeout 设置为 5 秒
-            with valve.rcon.RCON((self.ip, self.port), password, timeout=5) as rcon:
-                # 发送 _restart 指令 (通常用于彻底重启服务器进程)
-                response = rcon.execute("_restart")
-                
-                # 处理响应
-                resp_str = str(response)
-                # 如果响应包含 RCONMessage 对象表示，通常意味着没有文本返回（这是正常的，因为服务器重启了）
-                if not resp_str or "<RCONMessage" in resp_str:
-                    return "指令已发送。服务器正在重启..."
-                
-                return f"指令已发送。服务器响应: {resp_str}"
         
+        rcon = valve.rcon.RCON((self.ip, self.port), password, timeout=5)
+        
+        # 1. 尝试建立连接和认证
+        try:
+            rcon.connect()
+            rcon.authenticate()
+        except (socket.timeout, ConnectionRefusedError, OSError) as e:
+            return f"连接失败: 无法连接到服务器 ({type(e).__name__})。请检查服务器是否在线。"
         except valve.rcon.RCONAuthenticationError:
             return "RCON 认证失败：密码错误。"
+        except Exception as e:
+            return f"连接异常: {type(e).__name__} - {e}"
+
+        # 2. 连接成功，尝试发送指令
+        try:
+            # 发送 _restart 指令 (通常用于彻底重启服务器进程)
+            response = rcon.execute("_restart")
             
+            # 处理响应
+            resp_str = str(response)
+            # 如果响应包含 RCONMessage 对象表示，通常意味着没有文本返回（这是正常的，因为服务器重启了）
+            if not resp_str or "<RCONMessage" in resp_str:
+                return "指令已发送。服务器正在重启..."
+            
+            return f"指令已发送。服务器响应: {resp_str}"
+        
         except (socket.timeout, ConnectionResetError, ConnectionAbortedError, BrokenPipeError, EOFError):
-            # 对于重启指令，这些异常通常意味着指令已生效但连接被切断，或者库无法解析空响应
-            # 用户反馈其他工具能收到空响应，说明是库的解析问题或连接处理差异
-            # 在这里统一视为成功
+            # 在执行指令期间发生连接中断/超时，通常意味着服务器收到指令后立即重启并断开了连接
             return "指令已发送。服务器正在重启..."
             
         except Exception as e:
             import traceback
             traceback.print_exc()
-            return f"RCON 操作失败: {type(e).__name__} - {e}"
+            return f"指令执行出错: {type(e).__name__} - {e}"
+        finally:
+            # 确保关闭连接
+            rcon.close()
