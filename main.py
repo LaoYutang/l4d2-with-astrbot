@@ -243,6 +243,13 @@ class L4D2Plugin(Star):
         yield event.plain_result(f"正在尝试重启 {server_config['name']}...")
         
         loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(None, server.restart, rcon_password)
+        try:
+            # 设置 15 秒的总超时时间，防止底层库卡死
+            result = await asyncio.wait_for(
+                loop.run_in_executor(None, server.restart, rcon_password),
+                timeout=15.0
+            )
+        except asyncio.TimeoutError:
+            result = "操作超时：连接服务器耗时过长，请检查服务器状态或网络连接。"
         
         yield event.plain_result(result)

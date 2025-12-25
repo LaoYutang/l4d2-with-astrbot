@@ -50,7 +50,7 @@ class L4D2Server:
         try:
             rcon.connect()
             rcon.authenticate()
-        except (socket.timeout, ConnectionRefusedError, OSError) as e:
+        except (socket.timeout, TimeoutError, ConnectionRefusedError, OSError) as e:
             return f"连接失败: 无法连接到服务器 ({type(e).__name__})。请检查服务器是否在线。"
         except valve.rcon.RCONAuthenticationError:
             return "RCON 认证失败：密码错误。"
