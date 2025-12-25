@@ -2,6 +2,7 @@ from astrbot.api.all import *
 from astrbot.api.event import filter
 import os
 import asyncio
+import re
 from .l4d2_query import L4D2Server
 from .config_manager import ConfigManager
 from .workshop_utils import WorkshopTools
