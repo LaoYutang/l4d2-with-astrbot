@@ -42,6 +42,7 @@ class L4D2Server:
     def restart(self, password: str) -> str:
         """通过 RCON 重启服务器 (发送 restart 指令)"""
         import valve.rcon
+        import socket
         try:
             # RCON 默认端口通常与游戏端口相同，但有时不同。这里假设相同。
             # timeout 设置为 5 秒
@@ -56,6 +57,16 @@ class L4D2Server:
                     return "指令已发送。服务器正在重启..."
                 
                 return f"指令已发送。服务器响应: {resp_str}"
+        
+        except valve.rcon.RCONAuthenticationError:
+            return "RCON 认证失败：密码错误。"
+            
+        except (socket.timeout, ConnectionResetError, ConnectionAbortedError, BrokenPipeError, EOFError):
+            # 对于重启指令，这些异常通常意味着指令已生效但连接被切断，或者库无法解析空响应
+            # 用户反馈其他工具能收到空响应，说明是库的解析问题或连接处理差异
+            # 在这里统一视为成功
+            return "指令已发送。服务器正在重启..."
+            
         except Exception as e:
             import traceback
             traceback.print_exc()
