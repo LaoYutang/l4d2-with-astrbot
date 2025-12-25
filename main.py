@@ -275,8 +275,6 @@ class L4D2Plugin(Star):
             return
 
         msg = f"=== 创意工坊{type_str}解析 ===\n"
-        download_links = []
-        
         for item in results:
             title = item.get("title", "未知标题")
             file_url = item.get("file_url", "")
@@ -289,13 +287,7 @@ class L4D2Plugin(Star):
             
             msg += f"标题: {title}\n"
             msg += f"文件: {filename} ({size})\n"
+            msg += f"下载: {file_url}\n"
             msg += "-" * 20 + "\n"
-            
-            if file_url:
-                download_links.append(file_url)
-        
-        if download_links:
-            msg += "=== 下载链接 ===\n"
-            msg += "\n".join(download_links)
             
         yield event.plain_result(msg.strip())
