@@ -57,4 +57,6 @@ class L4D2Server:
                 
                 return f"指令已发送。服务器响应: {resp_str}"
         except Exception as e:
-            return f"RCON 操作失败: {e}"
+            import traceback
+            traceback.print_exc()
+            return f"RCON 操作失败: {type(e).__name__} - {e}"
