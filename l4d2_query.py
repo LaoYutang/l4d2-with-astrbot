@@ -70,8 +70,9 @@ class L4D2Server:
             
             return f"指令已发送。服务器响应: {resp_str}"
         
-        except (socket.timeout, ConnectionResetError, ConnectionAbortedError, BrokenPipeError, EOFError):
+        except (socket.timeout, ConnectionResetError, ConnectionAbortedError, BrokenPipeError, EOFError, valve.rcon.RCONCommunicationError):
             # 在执行指令期间发生连接中断/超时，通常意味着服务器收到指令后立即重启并断开了连接
+            # RCONCommunicationError 是 valve 库对底层 socket 错误的封装
             return "指令已发送。服务器正在重启..."
             
         except Exception as e:
