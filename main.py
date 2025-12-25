@@ -257,11 +257,11 @@ class L4D2Plugin(Star):
         
         yield event.plain_result(result)
 
-    @filter.regex(r"https?://steamcommunity\.com/sharedfiles/filedetails/\?id=(\d+)")
+    @filter.regex(r"https?://steamcommunity\.com/(?:sharedfiles|workshop)/filedetails/\?id=(\d+)")
     async def parse_workshop_link(self, event: AstrMessageEvent, *args, **kwargs):
         """解析创意工坊链接"""
         # 手动匹配以获取 URL
-        match = re.search(r"https?://steamcommunity\.com/sharedfiles/filedetails/\?id=(\d+)", event.message_str)
+        match = re.search(r"https?://steamcommunity\.com/(?:sharedfiles|workshop)/filedetails/\?id=(\d+)", event.message_str)
         if not match:
             return
             

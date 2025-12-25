@@ -7,7 +7,7 @@ class WorkshopTools:
         self.api_url = "https://steamworkshopdownloader.io/api/details/file"
         self.headers = {
             "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
         self.logger = logging.getLogger("l4d2_plugin.workshop")
 
@@ -93,7 +93,7 @@ class WorkshopTools:
                         return False, []
                     text = await resp.text()
         except Exception as e:
-            self.logger.error(f"Error fetching steam page: {e}")
+            self.logger.error(f"Error fetching steam page: {repr(e)}")
             return False, []
         
         # Check if collection
@@ -121,13 +121,26 @@ class WorkshopTools:
         return False, []
 
     async def _fetch_details(self, ids: list):
+        # 尝试将 ID 转换为整数，避免 API 因类型问题返回 500
+        payload = []
+        for i in ids:
+            try:
+                payload.append(int(i))
+            except:
+                payload.append(str(i))
+
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(self.api_url, json=ids, headers=self.headers, timeout=30) as resp:
+                async with session.post(self.api_url, json=payload, headers=self.headers, timeout=30) as resp:
                     if resp.status != 200:
                         self.logger.error(f"API returned status {resp.status}")
+                        try:
+                            err_text = await resp.text()
+                            self.logger.error(f"API Error body: {err_text}")
+                        except:
+                            pass
                         return None
                     return await resp.json()
         except Exception as e:
-            self.logger.error(f"Error calling downloader API: {e}")
+            self.logger.error(f"Error calling downloader API: {repr(e)}")
             return None
