@@ -146,9 +146,18 @@ class L4D2Plugin(Star):
             yield event.plain_result("本群未配置任何服务器。")
             return
 
+        connect_base_url = group_conf.get("connectBaseUrl")
+        
         msg = "=== 服务器列表 ===\n"
+        if connect_base_url:
+            msg += "点击下方链接连接服务器：\n"
+
         for conf in servers_config:
-            msg += f"[{conf['name']}] connect {conf['address']}\n"
+            if connect_base_url:
+                base_url = connect_base_url.rstrip('/')
+                msg += f"[{conf['name']}] {base_url}/{conf['address']}\n"
+            else:
+                msg += f"[{conf['name']}] connect {conf['address']}\n"
         
         yield event.plain_result(msg)
 
