@@ -77,7 +77,12 @@ class L4D2Plugin(Star):
                 m, s = divmod(duration, 60)
                 h, m = divmod(m, 60)
                 d, h = divmod(h, 24)
-                time_str = f"{d}:{h:02d}:{m:02d}:{s:02d}"
+                if d > 0:
+                    time_str = f"{d}:{h:02d}:{m:02d}:{s:02d}"
+                elif h > 0:
+                    time_str = f"{h}:{m:02d}:{s:02d}"
+                else:
+                    time_str = f"{m}:{s:02d}"
                 msg += f"- {p['name']} ({time_str})\n"
         else:
             msg += "\n当前无玩家在线。"
