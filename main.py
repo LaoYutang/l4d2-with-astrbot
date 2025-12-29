@@ -342,6 +342,10 @@ class L4D2Plugin(Star):
             )
         except asyncio.TimeoutError:
             result = "操作超时：连接服务器耗时过长，请检查服务器状态或网络连接。"
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            result = f"执行出错: {type(e).__name__} - {e}"
         
         yield event.plain_result(result)
 

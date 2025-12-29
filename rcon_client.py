@@ -28,11 +28,18 @@ class RCONClient:
             response = rcon.execute(command)
             
             # 处理响应
-            resp_str = str(response)
+            if isinstance(response, bytes):
+                resp_str = response.decode('utf-8', errors='replace')
+            else:
+                resp_str = str(response)
+            
             # 如果响应包含 RCONMessage 对象表示，通常意味着没有文本返回
-            if not resp_str or "<RCONMessage" in resp_str:
+            if not resp_str or "<RCONMessage" in resp_str or "valve.rcon.RCONMessage" in resp_str:
                 if command == "_restart":
                     return "指令已发送。服务器正在重启..."
+                # 尝试获取 .text 属性 (针对某些版本的 valve 库)
+                if hasattr(response, 'text'):
+                    return f"服务器响应: {response.text}"
                 return "指令已发送。服务器无文本响应。"
             
             return f"服务器响应: {resp_str}"
