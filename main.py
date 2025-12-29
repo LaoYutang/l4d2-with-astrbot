@@ -90,6 +90,12 @@ class L4D2Plugin(Star):
         else:
             msg += "\n当前无玩家在线。"
 
+        connect_url = server_config.get("url")
+        if connect_url:
+            msg += f"\n点击直连: {connect_url}"
+        else:
+            msg += f"\n连接指令: connect {server.ip}:{server.port}"
+
         yield event.plain_result(msg)
 
     @filter.regex(r"^connect\s+([a-zA-Z0-9\.:]+)$")
@@ -134,6 +140,21 @@ class L4D2Plugin(Star):
                 msg += f"- {p['name']} ({time_str})\n"
         else:
             msg += "\n当前无玩家在线。"
+
+        # 尝试查找匹配的服务器配置以获取直连链接
+        connect_url = None
+        group_conf = self._get_group_config(event)
+        if group_conf:
+            for s in group_conf.get("servers", []):
+                s_ip, s_port = temp_server._parse_address(s.get("address", ""))
+                if s_ip == temp_server.ip and s_port == temp_server.port:
+                    connect_url = s.get("url")
+                    break
+
+        if connect_url:
+            msg += f"\n点击直连: {connect_url}"
+        else:
+            msg += f"\n连接指令: connect {temp_server.ip}:{temp_server.port}"
 
         yield event.plain_result(msg)
 
