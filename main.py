@@ -263,6 +263,88 @@ class L4D2Plugin(Star):
             print(f"[L4D2Plugin] Error checking permission: {e}")
             return False
 
+    @filter.regex(r"^设置\s*(.+)$")
+    async def rcon_command(self, event: AstrMessageEvent, *args, **kwargs):
+        """向指定服务器发送RCON指令。用法：设置 [服务器名] [指令]"""
+        group_conf = self._get_group_config(event)
+        if not group_conf:
+            return
+
+        # 移除指令前缀
+        content = event.message_str.replace("设置", "", 1).strip()
+        
+        servers = group_conf.get("servers", [])
+        matched_server = None
+        command = ""
+
+        # 策略1：尝试匹配服务器名称前缀 (支持 "设置1服 status" 和 "设置 1服 status")
+        # 按名称长度倒序，优先匹配长名字
+        sorted_servers = sorted(servers, key=lambda s: len(s.get("name", "")), reverse=True)
+        
+        for s in sorted_servers:
+            s_name = s.get("name", "")
+            if not s_name: continue
+            
+            # 尝试匹配完整名称
+            if content.startswith(s_name):
+                matched_server = s
+                command = content[len(s_name):].strip()
+                break
+            
+            # 尝试匹配去空格名称 (例如配置为 "My Server"，输入 "MyServer status")
+            s_name_nospace = s_name.replace(" ", "")
+            if content.startswith(s_name_nospace):
+                matched_server = s
+                command = content[len(s_name_nospace):].strip()
+                break
+        
+        # 策略2：如果前缀匹配失败，尝试旧的空格分割逻辑 (作为后备)
+        if not matched_server:
+            parts = content.split(" ", 1)
+            if len(parts) >= 2:
+                target_name = parts[0].replace(" ", "")
+                cmd_part = parts[1].strip()
+                for s in servers:
+                    if s.get("name", "").replace(" ", "") == target_name:
+                        matched_server = s
+                        command = cmd_part
+                        break
+
+        if not matched_server:
+            yield event.plain_result("未找到指定名称的服务器。")
+            return
+
+        if not command:
+             yield event.plain_result("请输入要执行的指令。")
+             return
+
+        # 检查权限
+        admin_users = group_conf.get("admin_users", [])
+        if not self._check_permission(event, admin_users):
+            yield event.plain_result("权限不足：您不在管理员列表中。")
+            return
+
+        rcon_password = matched_server.get("rcon_password")
+        if not rcon_password:
+            yield event.plain_result(f"服务器 {matched_server['name']} 未配置 RCON 密码，无法执行指令。")
+            return
+
+        server = L4D2Server(matched_server["name"], matched_server["address"])
+        
+        yield event.plain_result(f"正在向 {matched_server['name']} 发送指令: {command} ...")
+        
+        loop = asyncio.get_running_loop()
+        try:
+            # 设置 15 秒的总超时时间
+            result = await asyncio.wait_for(
+                loop.run_in_executor(None, server.execute_rcon, rcon_password, command),
+                timeout=15.0
+            )
+        except asyncio.TimeoutError:
+            result = "操作超时：连接服务器耗时过长，请检查服务器状态或网络连接。"
+        
+        yield event.plain_result(result)
+
     @filter.regex(r"^重启\s*(.+)$")
     async def restart_server(self, event: AstrMessageEvent, *args, **kwargs):
         """重启指定服务器。用法：重启 [服务器名]"""

@@ -39,46 +39,12 @@ class L4D2Server:
         except Exception as e:
             return None
 
-    def restart(self, password: str) -> str:
-        """通过 RCON 重启服务器 (发送 restart 指令)"""
-        import valve.rcon
-        import socket
-        
-        rcon = valve.rcon.RCON((self.ip, self.port), password, timeout=5)
-        
-        # 1. 尝试建立连接和认证
-        try:
-            rcon.connect()
-            rcon.authenticate()
-        except (socket.timeout, TimeoutError, ConnectionRefusedError, OSError) as e:
-            return f"连接失败: 无法连接到服务器 ({type(e).__name__})。请检查服务器是否在线。"
-        except valve.rcon.RCONAuthenticationError:
-            return "RCON 认证失败：密码错误。"
-        except Exception as e:
-            return f"连接异常: {type(e).__name__} - {e}"
+    def execute_rcon(self, password: str, command: str) -> str:
+        """通过 RCON 执行指令"""
+        from .rcon_client import RCONClient
+        client = RCONClient(self.ip, self.port, password)
+        return client.execute(command)
 
-        # 2. 连接成功，尝试发送指令
-        try:
-            # 发送 _restart 指令 (通常用于彻底重启服务器进程)
-            response = rcon.execute("_restart")
-            
-            # 处理响应
-            resp_str = str(response)
-            # 如果响应包含 RCONMessage 对象表示，通常意味着没有文本返回（这是正常的，因为服务器重启了）
-            if not resp_str or "<RCONMessage" in resp_str:
-                return "指令已发送。服务器正在重启..."
-            
-            return f"指令已发送。服务器响应: {resp_str}"
-        
-        except (socket.timeout, ConnectionResetError, ConnectionAbortedError, BrokenPipeError, EOFError, valve.rcon.RCONCommunicationError):
-            # 在执行指令期间发生连接中断/超时，通常意味着服务器收到指令后立即重启并断开了连接
-            # RCONCommunicationError 是 valve 库对底层 socket 错误的封装
-            return "指令已发送。服务器正在重启..."
-            
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return f"指令执行出错: {type(e).__name__} - {e}"
-        finally:
-            # 确保关闭连接
-            rcon.close()
+    def restart(self, password: str) -> str:
+        """通过 RCON 重启服务器 (发送 _restart 指令)"""
+        return self.execute_rcon(password, "_restart")
