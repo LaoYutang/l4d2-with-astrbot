@@ -93,12 +93,11 @@ class L4D2Plugin(Star):
         base_url = self.cfg.get_connect_base_url()
         if base_url:
             if base_url.endswith("/"):
-                msg += f"\n连接: {base_url}{server.ip}:{server.port}"
+                msg += f"\n点击直连: {base_url}{server.ip}:{server.port}"
             else:
-                msg += f"\n连接: {base_url}/{server.ip}:{server.port}"
+                msg += f"\n点击直连: {base_url}/{server.ip}:{server.port}"
         else:
-            msg += f"\n连接: connect {server.ip}:{server.port}"
-
+            msg += f"\n连接指令: connect {server.ip}:{server.port}"
         yield event.plain_result(msg)
 
     @filter.regex(r"^connect\s+([a-zA-Z0-9\.:]+)$")
@@ -147,11 +146,11 @@ class L4D2Plugin(Star):
         base_url = self.cfg.get_connect_base_url()
         if base_url:
             if base_url.endswith("/"):
-                msg += f"\n连接: {base_url}{temp_server.ip}:{temp_server.port}"
+                msg += f"\n点击直连: {base_url}{temp_server.ip}:{temp_server.port}"
             else:
-                msg += f"\n连接: {base_url}/{temp_server.ip}:{temp_server.port}"
+                msg += f"\n点击直连: {base_url}/{temp_server.ip}:{temp_server.port}"
         else:
-            msg += f"\n连接: connect {temp_server.ip}:{temp_server.port}"
+            msg += f"\n连接指令: connect {temp_server.ip}:{temp_server.port}"
 
         yield event.plain_result(msg)
 
