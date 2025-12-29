@@ -92,6 +92,51 @@ class L4D2Plugin(Star):
 
         yield event.plain_result(msg)
 
+    @filter.regex(r"^connect\s+([a-zA-Z0-9\.:]+)$")
+    async def query_connect_info(self, event: AstrMessageEvent, *args, **kwargs):
+        """查询 connect 指令中的服务器信息"""
+        address = event.message_str.replace("connect", "", 1).strip()
+        
+        # 创建临时服务器对象进行查询
+        # 名称暂时用 "Unknown Server" 代替，查询成功后会更新
+        temp_server = L4D2Server("Unknown Server", address)
+        
+        yield event.plain_result(f"正在查询 {address}，请稍候...")
+        
+        loop = asyncio.get_running_loop()
+        info = await loop.run_in_executor(None, temp_server.query_info)
+        
+        if not info:
+            yield event.plain_result(f"无法连接到服务器 {address}，可能服务器离线或网络问题。")
+            return
+
+        players = await loop.run_in_executor(None, temp_server.query_players)
+        
+        msg = f"服务器: {info['server_name']}\n"
+        msg += f"地址: {address}\n"
+        msg += f"地图: {info['map_name']}\n"
+        msg += f"人数: {info['player_count']}/{info['max_players']}\n"
+        msg += f"延迟: {info['ping']}ms\n"
+        
+        if players:
+            msg += "\n在线玩家:\n"
+            for p in players:
+                duration = int(p['duration'])
+                m, s = divmod(duration, 60)
+                h, m = divmod(m, 60)
+                d, h = divmod(h, 24)
+                if d > 0:
+                    time_str = f"{d}:{h:02d}:{m:02d}:{s:02d}"
+                elif h > 0:
+                    time_str = f"{h}:{m:02d}:{s:02d}"
+                else:
+                    time_str = f"{m}:{s:02d}"
+                msg += f"- {p['name']} ({time_str})\n"
+        else:
+            msg += "\n当前无玩家在线。"
+
+        yield event.plain_result(msg)
+
     @filter.regex(r"^综合查询$")
     async def query_all(self, event: AstrMessageEvent, *args, **kwargs):
         """查询所有配置的L4D2服务器简略状态"""
