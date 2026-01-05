@@ -1,5 +1,6 @@
 import a2s
 import socket
+import urllib.request
 from typing import Dict, Any, List, Optional, Tuple
 
 class L4D2Server:
@@ -14,14 +15,30 @@ class L4D2Server:
             return parts[0], int(parts[1])
         return address, 27015
 
+    def _get_map_real_name(self, map_code: str) -> str:
+        try:
+            url = f"https://l4d2-maps.laoyutang.cn/{map_code}"
+            with urllib.request.urlopen(url, timeout=2.0) as response:
+                if response.status == 200:
+                    content = response.read().decode('utf-8').strip()
+                    if content:
+                        return content
+        except Exception:
+            pass
+        return map_code
+
     def query_info(self) -> Optional[Dict[str, Any]]:
         """查询服务器基本信息"""
         try:
             # timeout 设置为 2 秒，避免阻塞太久
             info = a2s.info((self.ip, self.port), timeout=2.0)
+            
+            # 获取地图真实名称
+            real_map_name = self._get_map_real_name(info.map_name)
+
             return {
                 "server_name": info.server_name,
-                "map_name": info.map_name,
+                "map_name": real_map_name,
                 "player_count": info.player_count,
                 "max_players": info.max_players,
                 "ping": int(info.ping * 1000)
