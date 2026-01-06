@@ -39,6 +39,9 @@ class WorkshopTools:
                 details = await self._fetch_details(child_ids)
                 if details:
                     valid_results = [item for item in details if item.get("result") == 1]
+                    # 如果主物品本身也有下载链接，也加入列表
+                    if item_info.get("result") == 1 and item_info.get("file_url"):
+                        valid_results.insert(0, item_info)
                     return valid_results, "合集"
         
         # 检查是否为单品 (有 file_url)

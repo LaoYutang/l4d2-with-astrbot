@@ -1,6 +1,6 @@
 name: astrbot_plugin_l4d2_query
 display_name: L4D2服务器查询
 desc: 查询L4D2服务器状态，支持详细查询和综合查询。
-version: v1.2.0
+version: v1.2.1
 author: LaoYutang
 repo: https://github.com/LaoYutang/l4d2-with-astrbot
