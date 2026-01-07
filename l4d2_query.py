@@ -2,6 +2,9 @@ import a2s
 import socket
 import urllib.request
 from typing import Dict, Any, List, Optional, Tuple
+import logging
+
+logger = logging.getLogger("l4d2_plugin.query")
 
 class L4D2Server:
     def __init__(self, name: str, address: str, map_name_url: str = ""):
@@ -23,17 +26,17 @@ class L4D2Server:
         # 确保 URL 末尾没有 /，然后拼接
         base_url = self.map_name_url.rstrip('/')
         url = f"{base_url}/{map_code}"
-        print(f"URL: {url}")
+        logger.info(f"URL: {url}")
 
         try:
             with urllib.request.urlopen(url, timeout=2.0) as response:
                 if response.status == 200:
                     content = response.read().decode('utf-8').strip()
                     if content:
-                        print(f"Result: {content}")
+                        logger.info(f"Result: {content}")
                         return content
         except Exception as e:
-            print(f"Error getting map name: {e}")
+            logger.error(f"Error getting map name: {e}")
             pass
         return map_code
 
