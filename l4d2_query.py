@@ -20,16 +20,20 @@ class L4D2Server:
         if not self.map_name_url:
             return map_code
             
+        # 确保 URL 末尾没有 /，然后拼接
+        base_url = self.map_name_url.rstrip('/')
+        url = f"{base_url}/{map_code}"
+        print(f"URL: {url}")
+
         try:
-            # 确保 URL 末尾没有 /，然后拼接
-            base_url = self.map_name_url.rstrip('/')
-            url = f"{base_url}/{map_code}"
             with urllib.request.urlopen(url, timeout=2.0) as response:
                 if response.status == 200:
                     content = response.read().decode('utf-8').strip()
                     if content:
+                        print(f"Result: {content}")
                         return content
-        except Exception:
+        except Exception as e:
+            print(f"Error getting map name: {e}")
             pass
         return map_code
 
