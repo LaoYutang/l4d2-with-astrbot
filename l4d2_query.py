@@ -4,9 +4,10 @@ import urllib.request
 from typing import Dict, Any, List, Optional, Tuple
 
 class L4D2Server:
-    def __init__(self, name: str, address: str):
+    def __init__(self, name: str, address: str, map_name_url: str = ""):
         self.name = name
         self.address = address
+        self.map_name_url = map_name_url
         self.ip, self.port = self._parse_address(address)
 
     def _parse_address(self, address: str) -> Tuple[str, int]:
@@ -16,8 +17,13 @@ class L4D2Server:
         return address, 27015
 
     def _get_map_real_name(self, map_code: str) -> str:
+        if not self.map_name_url:
+            return map_code
+            
         try:
-            url = f"https://l4d2-maps.laoyutang.cn/{map_code}"
+            # 确保 URL 末尾没有 /，然后拼接
+            base_url = self.map_name_url.rstrip('/')
+            url = f"{base_url}/{map_code}"
             with urllib.request.urlopen(url, timeout=2.0) as response:
                 if response.status == 200:
                     content = response.read().decode('utf-8').strip()

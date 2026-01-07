@@ -12,6 +12,7 @@ class ConfigManager:
             # 创建默认配置
             default_config = {
                 "connectBaseUrl": "", # 可选，一键连接的基础URL，例如 https://steam-connect.laoyutang.cn
+                "mapNameUrl": "", # 可选，获取地图真名API，例如 https://l4d2-maps.laoyutang.cn
                 "group_configs": [
                     {
                         "group_id": 12345678,
@@ -53,3 +54,7 @@ class ConfigManager:
     def get_connect_base_url(self) -> str:
         """获取全局连接基础URL"""
         return self.config.get("connectBaseUrl", "")
+
+    def get_map_name_url(self) -> str:
+        """获取地图真名API"""
+        return self.config.get("mapNameUrl", "")

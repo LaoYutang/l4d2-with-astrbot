@@ -17,6 +17,7 @@
 - **获取连接地址**: `服务器列表` / `服务器地址` / `连接指令`
   - 列出所有服务器的 `connect IP:Port` 指令，方便复制。
   - **一键连接**: 如果在配置中设置了 `connectBaseUrl`，将生成可点击的 HTTP 连接链接（如使用 steam-connect 服务）。
+  - **地图真名**: 如果在配置中设置了 `mapNameUrl`，将自动把地图代码（如 c1m1_hotel）转换为中文真名（如 死亡中心: 旅馆）。
 - **RCON 指令**: `设置 [服务器名] [指令]`
   - 向指定服务器发送 RCON 指令并获取返回结果。
   - 支持前缀匹配，例如 `设置1服 status`。
@@ -46,6 +47,7 @@
 ```json
 {
     "connectBaseUrl": "https://xxxx.xxxx.xx", // 可选：配置一键连接的基础URL
+    "mapNameUrl": "https://xxxx.xxxx.xx", // 可选：配置地图真名查询API，需要时不带最后的斜杠
     "group_configs": [
         {
             "group_id": 12345678,

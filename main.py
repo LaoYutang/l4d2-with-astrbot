@@ -55,7 +55,8 @@ class L4D2Plugin(Star):
             # 未找到服务器，静默返回
             return
 
-        server = L4D2Server(server_config["name"], server_config["address"])
+        map_name_url = self.cfg.get_map_name_url()
+        server = L4D2Server(server_config["name"], server_config["address"], map_name_url)
         
         yield event.plain_result(f"正在查询 {server_config['name']}，请稍候...")
         
