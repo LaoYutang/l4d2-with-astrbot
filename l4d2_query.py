@@ -2,9 +2,7 @@ import a2s
 import socket
 import urllib.request
 from typing import Dict, Any, List, Optional, Tuple
-import logging
-
-logger = logging.getLogger("l4d2_plugin.query")
+from astrbot.api.all import logger
 
 class L4D2Server:
     def __init__(self, name: str, address: str, map_name_url: str = ""):
