@@ -108,7 +108,8 @@ class L4D2Plugin(Star):
         
         # 创建临时服务器对象进行查询
         # 名称暂时用 "Unknown Server" 代替，查询成功后会更新
-        temp_server = L4D2Server("Unknown Server", address)
+        map_name_url = self.cfg.get_map_name_url()
+        temp_server = L4D2Server("Unknown Server", address, map_name_url)
         
         yield event.plain_result(f"正在查询 {address}，请稍候...")
         
