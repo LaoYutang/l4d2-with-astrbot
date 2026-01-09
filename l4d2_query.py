@@ -1,10 +1,20 @@
 import a2s
 import socket
 import urllib.request
+import time
+import threading
 from typing import Dict, Any, List, Optional, Tuple
 from astrbot.api.all import logger
 
 class L4D2Server:
+    # 类变量作为缓存，所有实例共享 map_code -> (real_name, timestamp)
+    _map_cache: Dict[str, Tuple[str, float]] = {}
+    _cache_lock = threading.Lock()
+    
+    # 针对每个地图代码的请求锁，防止并发重复请求
+    _request_locks: Dict[str, threading.Lock] = {}
+    _locks_lock = threading.Lock()
+
     def __init__(self, name: str, address: str, map_name_url: str = ""):
         self.name = name
         self.address = address
@@ -21,21 +31,54 @@ class L4D2Server:
         if not self.map_name_url:
             return map_code
             
-        # 确保 URL 末尾没有 /，然后拼接
-        base_url = self.map_name_url.rstrip('/')
-        url = f"{base_url}/{map_code}"
-        logger.info(f"URL: {url}")
+        current_time = time.time()
+        
+        # 1. 第一次检查缓存 (加锁读取)
+        with self._cache_lock:
+            if map_code in self._map_cache:
+                real_name, timestamp = self._map_cache[map_code]
+                if current_time - timestamp < 3600:
+                    logger.info(f"Using cached map name for {map_code}: {real_name}")
+                    return real_name
 
-        try:
-            with urllib.request.urlopen(url, timeout=2.0) as response:
-                if response.status == 200:
-                    content = response.read().decode('utf-8').strip()
-                    if content:
-                        logger.info(f"Result: {content}")
-                        return content
-        except Exception as e:
-            logger.error(f"Error getting map name: {e}")
-            pass
+        # 获取针对该地图代码的请求锁
+        # 如果有其他线程正在请求同一个 map_code，这里会阻塞等待
+        request_lock = None
+        with self._locks_lock:
+            if map_code not in self._request_locks:
+                self._request_locks[map_code] = threading.Lock()
+            request_lock = self._request_locks[map_code]
+            
+        with request_lock:
+            # 2. 双重检查 (Double-Checked Locking)
+            # 再次检查缓存，因为在等待锁的过程中，前一个线程可能已经请求完毕并写入缓存了
+            current_time = time.time() # 更新当前时间
+            with self._cache_lock:
+                if map_code in self._map_cache:
+                    real_name, timestamp = self._map_cache[map_code]
+                    if current_time - timestamp < 3600:
+                        logger.info(f"Using cached map name for {map_code} (after wait): {real_name}")
+                        return real_name
+
+            # 3. 确实没有缓存，发起网络请求
+            base_url = self.map_name_url.rstrip('/')
+            url = f"{base_url}/{map_code}"
+            logger.info(f"Querying map name URL: {url}")
+
+            try:
+                with urllib.request.urlopen(url, timeout=2.0) as response:
+                    if response.status == 200:
+                        content = response.read().decode('utf-8').strip()
+                        if content: # 只有内容非空才缓存
+                            logger.info(f"Query result for {map_code}: {content}")
+                            # 写入缓存 (加锁写入)
+                            with self._cache_lock:
+                                self._map_cache[map_code] = (content, current_time)
+                            return content
+            except Exception as e:
+                logger.error(f"Error getting map name for {map_code}: {e}")
+                pass
+                
         return map_code
 
     def query_info(self) -> Optional[Dict[str, Any]]:
