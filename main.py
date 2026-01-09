@@ -172,9 +172,10 @@ class L4D2Plugin(Star):
 
         loop = asyncio.get_running_loop()
         tasks = []
+        map_name_url = self.cfg.get_map_name_url()
         
         for conf in servers_config:
-            server = L4D2Server(conf["name"], conf["address"])
+            server = L4D2Server(conf["name"], conf["address"], map_name_url)
             tasks.append(loop.run_in_executor(None, self._query_server_brief, server))
 
         results = await asyncio.gather(*tasks)
@@ -184,13 +185,54 @@ class L4D2Plugin(Star):
         total_players = 0
         total_slots = 0
         
+        # 预处理数据，计算对齐所需的宽度
+        processed_servers = []
+        max_player_len = 0
+        
+        for res in results:
+            if res["online"]:
+                # 截断地图名，最大显示宽度15
+                trunc_map = self._truncate_text(res["map_name"], 15)
+                
+                # 记录人数显示字符串及其长度
+                p_str = f"{res['player_count']}/{res['max_players']}"
+                if len(p_str) > max_player_len:
+                    max_player_len = len(p_str)
+                
+                res["_map_display"] = trunc_map
+                res["_player_str"] = p_str
+            processed_servers.append(res)
+        
         server_lines = []
-        for is_online, p_count, max_p, line in results:
-            if is_online:
+        for res in processed_servers:
+            if res["online"]:
                 online_servers += 1
-                total_players += p_count
-                total_slots += max_p
-            server_lines.append(line)
+                total_players += res["player_count"]
+                total_slots += res["max_players"]
+                
+                s_name = res["server_name"]
+                s_name = self._truncate_text(s_name, 20)
+                
+                # 计算前缀宽度，用于第二行缩进
+                prefix = f"[{res['alias']}]"
+                prefix_width = self._get_text_width(prefix)
+                # 增加一个空格的缩进，以匹配第一行的空格
+                padding = self._make_padding(prefix_width) + " "
+                
+                # 人数对齐处理 (左对齐)
+                p_str = res["_player_str"]
+                # 针对非等宽字体优化：少一个字符补两个空格
+                diff = max_player_len - len(p_str)
+                p_padding = " " * (diff * 2)
+                
+                # 地图名
+                map_name = res["_map_display"]
+                
+                # 别名和服务器名之间增加空格，人数放前面(左对齐)，地图放后面
+                line = f"{prefix} {s_name}\n{padding}{p_str}{p_padding}   {map_name}"
+                server_lines.append(line)
+            else:
+                server_lines.append(f"[{res['alias']}] 离线或无法连接")
             
         msg = "=== L4D2 服务器概览 ===\n"
         msg += f"服务器: {online_servers}/{total_servers} 在线\n"
@@ -228,13 +270,62 @@ class L4D2Plugin(Star):
         
         yield event.plain_result(msg)
 
+    def _get_text_width(self, text: str) -> int:
+        """计算字符串显示宽度 (中文字符计为2，包含中文标点)"""
+        width = 0
+        for char in text:
+            # 判断 汉字(\u4e00-\u9fff) 或 全角字符(\uff00-\uffef, 包含中文小括号)
+            if '\u4e00' <= char <= '\u9fff' or '\uff00' <= char <= '\uffef':
+                width += 2
+            else:
+                width += 1
+        return width
+
+    def _truncate_text(self, text: str, max_width: int) -> str:
+        """根据显示宽度截断字符串"""
+        if self._get_text_width(text) <= max_width:
+            return text
+        
+        current_width = 0
+        result = ""
+        
+        for char in text:
+            # 保持一致的宽度计算逻辑
+            char_width = 2 if ('\u4e00' <= char <= '\u9fff' or '\uff00' <= char <= '\uffef') else 1
+            if current_width + char_width > max_width:
+                return result + "..."
+            current_width += char_width
+            result += char
+            
+        return result
+
+    def _make_padding(self, width: int) -> str:
+        """生成填充字符串，优先使用全角空格"""
+        full_spaces = width // 2
+        half_spaces = width % 2
+        return "\u3000" * full_spaces + " " * half_spaces
+
     def _query_server_brief(self, server: L4D2Server):
         """辅助函数：同步查询单个服务器简略信息"""
         info = server.query_info()
         if info:
-            return (True, info['player_count'], info['max_players'], f"[{server.name}] {info['server_name']} {info['player_count']}/{info['max_players']}")
+            map_name = info['map_name']
+            if "|" in map_name:
+                map_name = map_name.split("|")[0].strip()
+            
+            return {
+                "online": True,
+                "alias": server.name,
+                "server_name": info['server_name'],
+                "map_name": map_name,
+                "player_count": info['player_count'],
+                "max_players": info['max_players']
+            }
         else:
-            return (False, 0, 0, f"[{server.name}] 离线或无法连接")
+            return {
+                "online": False,
+                "alias": server.name
+            }
 
     def _check_permission(self, event: AstrMessageEvent, admin_list: list) -> bool:
         """检查发送者是否在管理员列表中"""
