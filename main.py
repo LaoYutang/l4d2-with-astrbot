@@ -6,6 +6,7 @@ import re
 from .l4d2_query import L4D2Server
 from .config_manager import ConfigManager
 from .workshop_utils import WorkshopTools
+from .heybox_voice import HeyboxVoiceClient
 
 @register("l4d2_query", "YourName", "L4D2服务器查询插件", "1.0.0")
 class L4D2Plugin(Star):
@@ -14,6 +15,7 @@ class L4D2Plugin(Star):
         self.config_path = os.path.join(os.path.dirname(__file__), "config.json")
         self.cfg = ConfigManager(self.config_path)
         self.workshop = WorkshopTools()
+        self.hh_voice = HeyboxVoiceClient(self.cfg.get_hh_bot_id(), self.cfg.get_hh_bot_token())
 
     def _get_group_config(self, event: AstrMessageEvent):
         """获取当前群的配置"""
@@ -25,6 +27,42 @@ class L4D2Plugin(Star):
         except:
             pass
         return None
+
+    def _get_server_config_by_name(self, servers: list, target_name: str):
+        """按现有查询规则匹配服务器名（忽略空格）"""
+        for server in servers:
+            if server.get("name", "").replace(" ", "") == target_name:
+                return server
+        return None
+
+    def _is_voice_configured(self, group_conf: dict, server_conf: dict) -> bool:
+        """检查黑盒语音配置是否足够查询指定服务器频道"""
+        return bool(
+            self.hh_voice.enabled()
+            and group_conf.get("hh_room_id")
+            and server_conf.get("hh_channel_id")
+        )
+
+    async def _get_voice_count(self, group_conf: dict, server_conf: dict):
+        """获取语音频道在线人数，失败时返回 None 以保持主查询不受影响"""
+        if not self._is_voice_configured(group_conf, server_conf):
+            return None
+        user_ids = await self.hh_voice.get_channel_user_ids(
+            str(group_conf.get("hh_room_id")),
+            str(server_conf.get("hh_channel_id"))
+        )
+        if user_ids is None:
+            return None
+        return len(user_ids)
+
+    async def _get_voice_names(self, group_conf: dict, server_conf: dict):
+        """获取语音频道在线用户名，失败时返回 None"""
+        if not self._is_voice_configured(group_conf, server_conf):
+            return None
+        return await self.hh_voice.get_channel_user_names(
+            str(group_conf.get("hh_room_id")),
+            str(server_conf.get("hh_channel_id"))
+        )
 
     @filter.regex(r"^查询\s*(.+)$")
     async def query_server(self, event: AstrMessageEvent, *args, **kwargs):
@@ -45,11 +83,7 @@ class L4D2Plugin(Star):
             return
 
         servers = group_conf.get("servers", [])
-        server_config = None
-        for s in servers:
-            if s.get("name", "").replace(" ", "") == target_name:
-                server_config = s
-                break
+        server_config = self._get_server_config_by_name(servers, target_name)
         
         if not server_config:
             # 未找到服务器，静默返回
@@ -67,11 +101,16 @@ class L4D2Plugin(Star):
             yield event.plain_result(f"无法连接到服务器 {server_config['name']}，可能服务器离线或网络问题。")
             return
 
-        players = await loop.run_in_executor(None, server.query_players)
+        players_task = loop.run_in_executor(None, server.query_players)
+        voice_count_task = self._get_voice_count(group_conf, server_config)
+        players, voice_count = await asyncio.gather(players_task, voice_count_task)
         
         msg = f"服务器: {info['server_name']}\n"
         msg += f"地图: {info['map_name']}\n"
-        msg += f"人数: {info['player_count']}/{info['max_players']}\n"
+        player_line = f"人数: {info['player_count']}/{info['max_players']}"
+        if voice_count is not None:
+            player_line += f" (🎧{voice_count})"
+        msg += player_line + "\n"
         msg += f"延迟: {info['ping']}ms\n"
         
         if players:
@@ -100,6 +139,37 @@ class L4D2Plugin(Star):
         else:
             msg += f"\n连接指令: connect {server.ip}:{server.port}"
         yield event.plain_result(msg)
+
+    @filter.regex(r"^语音\s*(.+)$")
+    async def query_voice_channel(self, event: AstrMessageEvent, *args, **kwargs):
+        """查询指定服务器对应黑盒语音频道的在线名单。用法：语音 [服务器名]"""
+        group_conf = self._get_group_config(event)
+        if not group_conf:
+            return
+
+        server_name = event.message_str.replace("语音", "", 1).strip()
+        target_name = server_name.replace(" ", "")
+        if not target_name:
+            return
+
+        server_config = self._get_server_config_by_name(group_conf.get("servers", []), target_name)
+        if not server_config:
+            return
+
+        names = await self._get_voice_names(group_conf, server_config)
+        if names is None:
+            return
+
+        server_display_name = server_config.get("name", target_name)
+        if not names:
+            yield event.plain_result(f"{server_display_name} 语音频道当前无人在线。")
+            return
+
+        msg = f"=== {server_display_name} 语音频道 ===\n"
+        msg += f"在线人数: {len(names)}\n"
+        for name in names:
+            msg += f"- {name}\n"
+        yield event.plain_result(msg.strip())
 
     @filter.regex(r"^connect\s+([a-zA-Z0-9\.:]+)$")
     async def query_connect_info(self, event: AstrMessageEvent, *args, **kwargs):
@@ -179,6 +249,11 @@ class L4D2Plugin(Star):
             tasks.append(loop.run_in_executor(None, self._query_server_brief, server))
 
         results = await asyncio.gather(*tasks)
+        voice_tasks = [
+            self._get_voice_count(group_conf, conf) if res.get("online") else asyncio.sleep(0, result=None)
+            for conf, res in zip(servers_config, results)
+        ]
+        voice_counts = await asyncio.gather(*voice_tasks)
         
         total_servers = len(servers_config)
         online_servers = 0
@@ -189,7 +264,9 @@ class L4D2Plugin(Star):
         processed_servers = []
         max_player_len = 0
         
-        for res in results:
+        for res, voice_count in zip(results, voice_counts):
+            if voice_count is not None:
+                res["_voice_count"] = voice_count
             if res["online"]:
                 # 截断地图名，最大显示宽度15
                 trunc_map = self._truncate_text(res["map_name"], 15)
@@ -225,11 +302,15 @@ class L4D2Plugin(Star):
                 diff = max_player_len - len(p_str)
                 p_padding = " " * (diff * 2)
                 
+                voice_part = ""
+                if "_voice_count" in res:
+                    voice_part = f"   🎧{res['_voice_count']}"
+
                 # 地图名
                 map_name = res["_map_display"]
                 
-                # 别名和服务器名之间增加空格，人数放前面(左对齐)，地图放后面
-                line = f"{prefix} {s_name}\n{padding}{p_str}{p_padding}   {map_name}"
+                # 别名和服务器名之间增加空格，第二行人数，第三行地图
+                line = f"{prefix} {s_name}\n{padding}{p_str}{p_padding}{voice_part}\n{padding}{map_name}"
                 server_lines.append(line)
             else:
                 server_lines.append(f"[{res['alias']}] 离线或无法连接")

@@ -14,6 +14,10 @@
   - 如果该服务器在配置中存在，会优先使用配置中的直连链接。
 - **综合查询**: `综合查询`
   - 显示所有配置服务器的简略状态（地图、人数、延迟）。
+  - 如果配置了黑盒语音，会显示每个服务器对应语音频道在线人数。
+- **语音频道查询**: `语音 [服务器名]`
+  - 查询指定服务器对应黑盒语音频道的在线名单。
+  - 需要配置黑盒语音机器人 ID、Token、房间 ID 和频道 ID。
 - **获取连接地址**: `服务器列表` / `服务器地址` / `连接指令`
   - 列出所有服务器的 `connect IP:Port` 指令，方便复制。
   - **一键连接**: 如果在配置中设置了 `connectBaseUrl`，将生成可点击的 HTTP 连接链接（如使用 steam-connect 服务）。
@@ -48,19 +52,24 @@
 {
     "connectBaseUrl": "https://xxxx.xxxx.xx", // 可选：配置一键连接的基础URL
     "mapNameUrl": "https://xxxx.xxxx.xx", // 可选：配置地图真名查询API，需要时不带最后的斜杠
+    "hh_bot_id": "", // 可选：黑盒语音机器人ID
+    "hh_bot_token": "", // 可选：黑盒语音机器人Token
     "group_configs": [
         {
             "group_id": 12345678,
+            "hh_room_id": "", // 可选：黑盒语音房间ID
             "admin_users": [123456789], // 管理员QQ列表，只有列表中的用户可以使用重启指令
             "servers": [
                 {
                     "name": "主服务器",
                     "address": "127.0.0.1:27015",
+                    "hh_channel_id": "", // 可选：黑盒语音频道ID
                     "rcon_password": "your_rcon_password"  // 可选：配置 RCON 密码以启用重启功能
                 },
                 {
                     "name": "对抗服",
-                    "address": "1.2.3.4:27016"
+                    "address": "1.2.3.4:27016",
+                    "hh_channel_id": ""
                 }
             ]
         },

@@ -13,14 +13,18 @@ class ConfigManager:
             default_config = {
                 "connectBaseUrl": "", # 可选，一键连接的基础URL，例如 https://steam-connect.laoyutang.cn
                 "mapNameUrl": "", # 可选，获取地图真名API，例如 https://l4d2-maps.laoyutang.cn
+                "hh_bot_id": "", # 可选，黑盒语音机器人ID
+                "hh_bot_token": "", # 可选，黑盒语音机器人Token
                 "group_configs": [
                     {
                         "group_id": 12345678,
+                        "hh_room_id": "", # 可选，黑盒语音房间ID
                         "admin_users": [], # 管理员QQ列表，只有列表中的用户可以使用重启指令
                         "servers": [
                             {
                                 "name": "示例服务器", 
                                 "address": "127.0.0.1:27015",
+                                "hh_channel_id": "", # 可选，黑盒语音频道ID
                                 "rcon_password": "your_rcon_password_here" # 可选，用于重启服务器
                             }
                         ]
@@ -58,3 +62,11 @@ class ConfigManager:
     def get_map_name_url(self) -> str:
         """获取地图真名API"""
         return self.config.get("mapNameUrl", "")
+
+    def get_hh_bot_id(self) -> str:
+        """获取黑盒语音机器人ID"""
+        return str(self.config.get("hh_bot_id", "") or "")
+
+    def get_hh_bot_token(self) -> str:
+        """获取黑盒语音机器人Token"""
+        return str(self.config.get("hh_bot_token", "") or "")
