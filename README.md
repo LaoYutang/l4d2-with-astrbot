@@ -52,6 +52,7 @@
 {
     "connectBaseUrl": "https://xxxx.xxxx.xx", // 可选：配置一键连接的基础URL
     "mapNameUrl": "https://xxxx.xxxx.xx", // 可选：配置地图真名查询API，需要时不带最后的斜杠
+    "safeMode": false, // 可选：开启后查服玩家名只保留首尾字符，中间用等长 * 脱敏
     "hh_bot_id": "", // 可选：黑盒语音机器人ID
     "hh_bot_token": "", // 可选：黑盒语音机器人Token
     "group_configs": [

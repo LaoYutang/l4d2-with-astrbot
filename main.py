@@ -64,6 +64,12 @@ class L4D2Plugin(Star):
             str(server_conf.get("hh_channel_id"))
         )
 
+    def _format_player_name(self, name: str) -> str:
+        """根据安全模式配置格式化玩家名"""
+        if not self.cfg.get_safe_mode() or len(name) <= 2:
+            return name
+        return f"{name[0]}{'*' * (len(name) - 2)}{name[-1]}"
+
     @filter.regex(r"^查询\s*(.+)$")
     async def query_server(self, event: AstrMessageEvent, *args, **kwargs):
         """查询指定L4D2服务器状态。用法：查询 [服务器名]"""
@@ -126,7 +132,7 @@ class L4D2Plugin(Star):
                     time_str = f"{h}:{m:02d}:{s:02d}"
                 else:
                     time_str = f"{m}:{s:02d}"
-                msg += f"- {p['name']} ({time_str})\n"
+                msg += f"- {self._format_player_name(p['name'])} ({time_str})\n"
         else:
             msg += "\n当前无玩家在线。"
 
@@ -211,7 +217,7 @@ class L4D2Plugin(Star):
                     time_str = f"{h}:{m:02d}:{s:02d}"
                 else:
                     time_str = f"{m}:{s:02d}"
-                msg += f"- {p['name']} ({time_str})\n"
+                msg += f"- {self._format_player_name(p['name'])} ({time_str})\n"
         else:
             msg += "\n当前无玩家在线。"
 

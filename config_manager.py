@@ -13,6 +13,7 @@ class ConfigManager:
             default_config = {
                 "connectBaseUrl": "", # 可选，一键连接的基础URL，例如 https://steam-connect.laoyutang.cn
                 "mapNameUrl": "", # 可选，获取地图真名API，例如 https://l4d2-maps.laoyutang.cn
+                "safeMode": False, # 可选，开启后查询服务器时会脱敏玩家名
                 "hh_bot_id": "", # 可选，黑盒语音机器人ID
                 "hh_bot_token": "", # 可选，黑盒语音机器人Token
                 "group_configs": [
@@ -62,6 +63,10 @@ class ConfigManager:
     def get_map_name_url(self) -> str:
         """获取地图真名API"""
         return self.config.get("mapNameUrl", "")
+
+    def get_safe_mode(self) -> bool:
+        """获取安全模式开关"""
+        return bool(self.config.get("safeMode", False))
 
     def get_hh_bot_id(self) -> str:
         """获取黑盒语音机器人ID"""
