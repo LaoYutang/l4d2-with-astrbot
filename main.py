@@ -177,7 +177,7 @@ class L4D2Plugin(Star):
             msg += f"- {name}\n"
         yield event.plain_result(msg.strip())
 
-    @filter.regex(r"^connect\s+([a-zA-Z0-9\.:]+)$")
+    @filter.regex(r"^connect\s+([a-zA-Z0-9.-]+(?::\d+)?)$")
     async def query_connect_info(self, event: AstrMessageEvent, *args, **kwargs):
         """查询 connect 指令中的服务器信息"""
         address = event.message_str.replace("connect", "", 1).strip()
