@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>L4D2 服务器配置</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <div class="brand-mark" aria-hidden="true">
+            <span>L4D</span><strong>2</strong>
+          </div>
+          <div>
+            <p class="eyebrow">SERVER CONTROL</p>
+            <h1>L4D2 服务器配置</h1>
+            <p class="subtitle">集中管理群组、查询服务器与黑盒语音关联。</p>
+          </div>
+        </div>
+        <div class="top-actions">
+          <div id="saveState" class="save-state is-saved" role="status">
+            <span class="status-dot"></span>
+            <span class="status-label">已同步</span>
+          </div>
+          <button id="reloadButton" class="button button-ghost" type="button">
+            重新载入
+          </button>
+          <button id="saveButton" class="button button-primary" type="button">
+            保存配置
+          </button>
+        </div>
+      </header>
+
+      <main>
+        <section class="overview" aria-label="配置概览">
+          <div class="overview-copy">
+            <span class="section-kicker">配置概览</span>
+            <h2>一处修改，即时生效</h2>
+            <p>
+              保存目标仍是插件目录内的 <code>config.json</code>。保存后无需重载插件，新的查询配置和黑盒凭据会立即应用。
+            </p>
+          </div>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <span class="stat-label">群组</span>
+              <strong id="groupCount">0</strong>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">服务器</span>
+              <strong id="serverCount">0</strong>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">脱敏模式</span>
+              <strong id="safeModeState" class="stat-word">关闭</strong>
+            </div>
+          </div>
+        </section>
+
+        <div id="alertBox" class="alert" role="alert" hidden></div>
+
+        <section class="panel global-panel">
+          <div class="panel-heading">
+            <div>
+              <span class="section-kicker">GLOBAL</span>
+              <h2>全局设置</h2>
+              <p>这些设置会应用到所有已配置群组。</p>
+            </div>
+            <span class="file-pill"><span class="file-dot"></span>config.json</span>
+          </div>
+
+          <div class="form-grid">
+            <label class="field field-wide">
+              <span class="field-label">一键连接基础 URL</span>
+              <span class="field-hint">例如 https://steam-connect.example.com</span>
+              <input id="connectBaseUrl" type="url" placeholder="https://..." autocomplete="url" />
+            </label>
+
+            <label class="field field-wide">
+              <span class="field-label">地图名称 API URL</span>
+              <span class="field-hint">用于把地图代码转换为可读名称</span>
+              <input id="mapNameUrl" type="url" placeholder="https://..." autocomplete="url" />
+            </label>
+
+            <label class="field">
+              <span class="field-label">黑盒机器人 ID</span>
+              <span class="field-hint">未使用黑盒语音时可留空</span>
+              <input id="hhBotId" type="text" placeholder="Bot ID" autocomplete="off" />
+            </label>
+
+            <label class="field">
+              <span class="field-label">黑盒机器人 Token</span>
+              <span class="field-hint">仅在当前页面临时显示</span>
+              <span class="secret-control">
+                <input id="hhBotToken" type="password" placeholder="Token" autocomplete="new-password" />
+                <button class="secret-toggle" type="button" data-secret-target="hhBotToken" aria-label="显示或隐藏 Token">显示</button>
+              </span>
+            </label>
+
+            <div class="toggle-field field-wide">
+              <div>
+                <span class="field-label">玩家名脱敏</span>
+                <span class="field-hint">查询结果只保留玩家名首尾字符，中间以星号替代</span>
+              </div>
+              <label class="switch">
+                <input id="safeMode" type="checkbox" />
+                <span class="switch-track"><span class="switch-thumb"></span></span>
+                <span class="switch-text">关闭</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="groups-section">
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker">GROUPS &amp; SERVERS</span>
+              <h2>群组与服务器</h2>
+              <p>每个群组可以配置独立的管理员、语音房间和多台服务器。</p>
+            </div>
+            <button id="addGroupButton" class="button button-secondary" type="button">
+              <span aria-hidden="true">＋</span> 添加群组
+            </button>
+          </div>
+          <div id="groupsContainer" class="groups-list"></div>
+          <div id="emptyGroups" class="empty-state" hidden>
+            <div class="empty-icon" aria-hidden="true">⌁</div>
+            <h3>还没有群组配置</h3>
+            <p>添加一个群组，然后为它关联 L4D2 服务器。</p>
+            <button id="emptyAddGroupButton" class="button button-secondary" type="button">添加第一个群组</button>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <span>配置通过 AstrBot Dashboard 鉴权接口保存</span>
+        <span class="footer-separator">•</span>
+        <span>敏感字段在磁盘中仍为明文，请妥善保护服务器目录</span>
+      </footer>
+    </div>
+
+    <div id="loadingLayer" class="loading-layer" aria-live="polite">
+      <div class="loader"></div>
+      <span>正在读取配置…</span>
+    </div>
+    <div id="confirmLayer" class="confirm-layer" hidden>
+      <section class="confirm-card" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+        <div class="confirm-symbol" aria-hidden="true">!</div>
+        <h2 id="confirmTitle">确认操作</h2>
+        <p id="confirmMessage"></p>
+        <div class="confirm-actions">
+          <button id="confirmCancel" class="button button-ghost" type="button">取消</button>
+          <button id="confirmAccept" class="button button-danger" type="button">确认删除</button>
+        </div>
+      </section>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

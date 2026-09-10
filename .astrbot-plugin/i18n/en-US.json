@@ -1,0 +1,8 @@
+{
+  "pages": {
+    "settings": {
+      "title": "Server settings",
+      "description": "Manage L4D2 groups, servers, RCON, and Heybox voice settings."
+    }
+  }
+}

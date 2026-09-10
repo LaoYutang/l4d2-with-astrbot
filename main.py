@@ -1,14 +1,22 @@
 from astrbot.api.all import *
 from astrbot.api.event import filter
+from astrbot.api.web import error_response, json_response, request
 import os
 import asyncio
 import re
 from .l4d2_query import L4D2Server
-from .config_manager import ConfigManager
+from .config_manager import (
+    ConfigConflictError,
+    ConfigManager,
+    ConfigValidationError,
+)
 from .workshop_utils import WorkshopTools
 from .heybox_voice import HeyboxVoiceClient
 
-@register("l4d2_query", "YourName", "L4D2服务器查询插件", "1.0.0")
+PLUGIN_NAME = "astrbot_plugin_l4d2_query"
+
+
+@register("l4d2_query", "LaoYutang", "L4D2服务器查询插件", "1.4.0")
 class L4D2Plugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -16,6 +24,62 @@ class L4D2Plugin(Star):
         self.cfg = ConfigManager(self.config_path)
         self.workshop = WorkshopTools()
         self.hh_voice = HeyboxVoiceClient(self.cfg.get_hh_bot_id(), self.cfg.get_hh_bot_token())
+        context.register_web_api(
+            f"/{PLUGIN_NAME}/config",
+            self.page_get_config,
+            ["GET"],
+            "读取 L4D2 查询插件配置",
+        )
+        context.register_web_api(
+            f"/{PLUGIN_NAME}/config",
+            self.page_save_config,
+            ["POST"],
+            "保存 L4D2 查询插件配置",
+        )
+
+    async def page_get_config(self):
+        """配置 Page：从原有 config.json 读取最新内容。"""
+        try:
+            config, revision = self.cfg.reload_config()
+            return json_response(
+                {
+                    "config": config,
+                    "revision": revision,
+                    "filename": "config.json",
+                }
+            )
+        except (OSError, ValueError) as exc:
+            return error_response(f"读取 config.json 失败：{exc}", status_code=500)
+
+    async def page_save_config(self):
+        """配置 Page：校验并原子替换原有 config.json。"""
+        payload = await request.json(default={})
+        if not isinstance(payload, dict) or "config" not in payload:
+            return error_response("请求中缺少 config 对象", status_code=400)
+
+        try:
+            config, revision = self.cfg.replace_config(
+                payload["config"], payload.get("revision")
+            )
+            # 凭据变更后立即应用，无需用户重载整个插件。
+            self.hh_voice = HeyboxVoiceClient(
+                self.cfg.get_hh_bot_id(), self.cfg.get_hh_bot_token()
+            )
+            return json_response(
+                {
+                    "saved": True,
+                    "config": config,
+                    "revision": revision,
+                    "filename": "config.json",
+                }
+            )
+        except ConfigValidationError as exc:
+            return error_response(str(exc), status_code=400)
+        except ConfigConflictError as exc:
+            return error_response(str(exc), status_code=409)
+        except (OSError, TypeError, ValueError):
+            logger.exception("保存 L4D2 插件配置失败")
+            return error_response("保存 config.json 失败，请查看 AstrBot 日志", status_code=500)
 
     def _get_group_config(self, event: AstrMessageEvent):
         """获取当前群的配置"""

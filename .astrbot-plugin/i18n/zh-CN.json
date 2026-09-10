@@ -1,0 +1,8 @@
+{
+  "pages": {
+    "settings": {
+      "title": "服务器配置",
+      "description": "管理 L4D2 群组、服务器、RCON 与黑盒语音配置。"
+    }
+  }
+}
