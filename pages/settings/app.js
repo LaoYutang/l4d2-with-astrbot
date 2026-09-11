@@ -48,6 +48,7 @@ function createEmptyConfig() {
 function createEmptyGroup() {
   return {
     group_id: "",
+    group_name: "",
     hh_room_id: "",
     admin_users: [],
     servers: [createEmptyServer()],
@@ -87,6 +88,7 @@ function normalizeConfig(rawConfig) {
     group_configs: groups.filter(isPlainObject).map((group) => ({
       ...group,
       group_id: asText(group.group_id),
+      group_name: asText(group.group_name),
       hh_room_id: asText(group.hh_room_id),
       admin_users: Array.isArray(group.admin_users)
         ? [...new Set(group.admin_users.map(asText).filter(Boolean))]
@@ -275,7 +277,7 @@ function addGroup() {
 
 async function removeGroup(groupIndex) {
   const group = state.group_configs[groupIndex];
-  const label = group.group_id || `#${groupIndex + 1}`;
+  const label = group.group_name || group.group_id || `#${groupIndex + 1}`;
   const confirmed = await requestConfirmation(
     `确定删除群组 ${label} 及其全部服务器配置吗？`,
     "确认删除群组",
@@ -353,6 +355,11 @@ function createGroupCard(group, groupIndex) {
     <div class="group-body">
       <div class="form-grid group-fields">
         <label class="field">
+          <span class="field-label">群组名称</span>
+          <span class="field-hint">仅用于配置页展示，方便识别群组，可留空</span>
+          <input type="text" data-field="group_name" autocomplete="off" placeholder="例如 主群" />
+        </label>
+        <label class="field">
           <span class="field-label">群组 ID</span>
           <span class="field-hint">机器人收到事件时使用的 group_id</span>
           <input type="text" data-field="group_id" autocomplete="off" placeholder="例如 12345678" />
@@ -388,6 +395,7 @@ function createGroupCard(group, groupIndex) {
   const title = details.querySelector(".group-title");
   const meta = details.querySelector(".group-meta");
   const serverCount = details.querySelector(".server-count-pill");
+  const groupNameInput = details.querySelector('input[data-field="group_name"]');
   const groupIdInput = details.querySelector('input[data-field="group_id"]');
   const roomIdInput = details.querySelector('input[data-field="hh_room_id"]');
   const adminInput = details.querySelector(".admin-input");
@@ -395,17 +403,25 @@ function createGroupCard(group, groupIndex) {
   const serversList = details.querySelector(".servers-list");
 
   function updateGroupSummary() {
-    title.textContent = group.group_id ? `群组 ${group.group_id}` : "未命名群组";
+    title.textContent =
+      group.group_name || (group.group_id ? `群组 ${group.group_id}` : "未命名群组");
     meta.textContent = group.hh_room_id ? `黑盒房间 ${group.hh_room_id}` : "未关联黑盒语音房间";
     serverCount.textContent = `${group.servers.length} 台服务器`;
   }
 
+  groupNameInput.value = group.group_name;
+  groupNameInput.dataset.path = `group_configs.${groupIndex}.group_name`;
   groupIdInput.value = group.group_id;
   groupIdInput.dataset.path = `group_configs.${groupIndex}.group_id`;
   roomIdInput.value = group.hh_room_id;
   roomIdInput.dataset.path = `group_configs.${groupIndex}.hh_room_id`;
   updateGroupSummary();
 
+  groupNameInput.addEventListener("input", () => {
+    group.group_name = groupNameInput.value;
+    updateGroupSummary();
+    markDirty();
+  });
   groupIdInput.addEventListener("input", () => {
     group.group_id = groupIdInput.value;
     updateGroupSummary();

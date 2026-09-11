@@ -23,9 +23,21 @@ class ConfigManagerTests(unittest.TestCase):
         config, revision = self.manager.reload_config()
 
         self.assertEqual(config["group_configs"][0]["group_id"], "12345678")
+        self.assertEqual(config["group_configs"][0]["group_name"], "示例群组")
         self.assertEqual(len(revision), 64)
         with open(self.config_path, encoding="utf-8") as config_file:
             self.assertIsInstance(json.load(config_file), dict)
+
+    def test_group_name_is_optional_and_normalized(self):
+        config = ConfigManager.default_config()
+        del config["group_configs"][0]["group_name"]
+
+        normalized = ConfigManager.validate_config(config)
+        self.assertEqual(normalized["group_configs"][0]["group_name"], "")
+
+        config["group_configs"][0]["group_name"] = "  主群  "
+        normalized = ConfigManager.validate_config(config)
+        self.assertEqual(normalized["group_configs"][0]["group_name"], "主群")
 
     def test_nested_config_and_unknown_fields_are_preserved(self):
         config, revision = self.manager.reload_config()

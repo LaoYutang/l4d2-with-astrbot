@@ -70,6 +70,7 @@
     "group_configs": [
         {
             "group_id": 12345678,
+            "group_name": "主群", // 可选：群组名称，仅用于配置页展示
             "hh_room_id": "", // 可选：黑盒语音房间ID
             "admin_users": [123456789], // 管理员QQ列表，只有列表中的用户可以使用重启指令
             "servers": [

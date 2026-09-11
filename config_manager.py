@@ -34,6 +34,7 @@ class ConfigManager:
             "group_configs": [
                 {
                     "group_id": "12345678",
+                    "group_name": "示例群组",
                     "hh_room_id": "",
                     "admin_users": [],
                     "servers": [
@@ -158,6 +159,9 @@ class ConfigManager:
 
             normalized_group = copy.deepcopy(group)
             normalized_group["group_id"] = group_id
+            normalized_group["group_name"] = cls._string(
+                group.get("group_name", ""), f"群组 {group_id} 的名称"
+            )
             normalized_group["hh_room_id"] = cls._string(
                 group.get("hh_room_id", ""), f"群组 {group_id} 的黑盒房间 ID"
             )
