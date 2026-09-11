@@ -1,5 +1,6 @@
 from astrbot.api.all import *
 from astrbot.api.event import filter
+from astrbot.api.star import StarTools
 from astrbot.api.web import error_response, json_response, request
 from astrbot.core.utils.session_waiter import (
     SessionController,
@@ -7,7 +8,6 @@ from astrbot.core.utils.session_waiter import (
     USER_SESSIONS,
     session_waiter,
 )
-import os
 import asyncio
 import re
 from .l4d2_query import L4D2Server
@@ -57,7 +57,9 @@ async def _cancel_existing_session(session_id: str) -> None:
 class L4D2Plugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
-        self.config_path = os.path.join(os.path.dirname(__file__), "config.json")
+        # 配置存放在 data/plugin_data 下，更新插件时不会被整目录替换掉。
+        self.config_path = str(StarTools.get_data_dir(PLUGIN_NAME) / "config.json")
+        logger.info(f"L4D2 查询插件配置文件：{self.config_path}")
         self.cfg = ConfigManager(self.config_path)
         self.workshop = WorkshopTools()
         self.hh_voice = HeyboxVoiceClient(self.cfg.get_hh_bot_id(), self.cfg.get_hh_bot_token())
@@ -75,7 +77,7 @@ class L4D2Plugin(Star):
         )
 
     async def page_get_config(self):
-        """配置 Page：从原有 config.json 读取最新内容。"""
+        """配置 Page：从插件数据目录读取最新内容。"""
         try:
             config, revision = self.cfg.reload_config()
             return json_response(
@@ -89,7 +91,7 @@ class L4D2Plugin(Star):
             return error_response(f"读取 config.json 失败：{exc}", status_code=500)
 
     async def page_save_config(self):
-        """配置 Page：校验并原子替换原有 config.json。"""
+        """配置 Page：校验并原子替换插件数据目录下的 config.json。"""
         payload = await request.json(default={})
         if not isinstance(payload, dict) or "config" not in payload:
             return error_response("请求中缺少 config 对象", status_code=400)

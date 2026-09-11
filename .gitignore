@@ -205,3 +205,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# 旧版本残留的运行时配置（现存放于 data/plugin_data，含 RCON 密码与面板凭据）
+config.json
