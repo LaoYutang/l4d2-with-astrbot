@@ -43,6 +43,8 @@ class ConfigManager:
                             "address": "127.0.0.1:27015",
                             "hh_channel_id": "",
                             "rcon_password": "your_rcon_password_here",
+                            "panel_url": "",
+                            "panel_token": "",
                         }
                     ],
                 }
@@ -197,6 +199,12 @@ class ConfigManager:
                 )
                 normalized_server["rcon_password"] = cls._string(
                     server.get("rcon_password", ""), f"服务器 {name} 的 RCON 密码"
+                )
+                normalized_server["panel_url"] = cls._optional_url(
+                    server.get("panel_url", ""), f"服务器 {name} 的面板地址"
+                )
+                normalized_server["panel_token"] = cls._string(
+                    server.get("panel_token", ""), f"服务器 {name} 的面板凭据"
                 )
                 normalized_servers.append(normalized_server)
 

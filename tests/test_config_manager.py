@@ -79,6 +79,58 @@ class ConfigManagerTests(unittest.TestCase):
         with self.assertRaisesRegex(ConfigValidationError, "端口必须"):
             ConfigManager.validate_config(config)
 
+    def test_panel_fields_default_and_backfilled(self):
+        config = ConfigManager.default_config()
+        server = config["group_configs"][0]["servers"][0]
+        self.assertEqual(server["panel_url"], "")
+        self.assertEqual(server["panel_token"], "")
+
+        # 旧配置缺少面板字段时补齐为空串
+        legacy = ConfigManager.default_config()
+        del legacy["group_configs"][0]["servers"][0]["panel_url"]
+        del legacy["group_configs"][0]["servers"][0]["panel_token"]
+        normalized = ConfigManager.validate_config(legacy)
+        self.assertEqual(normalized["group_configs"][0]["servers"][0]["panel_url"], "")
+        self.assertEqual(normalized["group_configs"][0]["servers"][0]["panel_token"], "")
+
+    def test_panel_url_is_validated_and_trimmed(self):
+        config = ConfigManager.default_config()
+        server = config["group_configs"][0]["servers"][0]
+        server["panel_url"] = "  http://1.2.3.4:27020/  "
+        server["panel_token"] = "  secret  "
+
+        normalized = ConfigManager.validate_config(config)
+        self.assertEqual(
+            normalized["group_configs"][0]["servers"][0]["panel_url"],
+            "http://1.2.3.4:27020",
+        )
+        self.assertEqual(
+            normalized["group_configs"][0]["servers"][0]["panel_token"], "secret"
+        )
+
+        for invalid_url in ("ftp://1.2.3.4", "1.2.3.4:27020", "http://"):
+            config["group_configs"][0]["servers"][0]["panel_url"] = invalid_url
+            with self.assertRaisesRegex(ConfigValidationError, "面板地址"):
+                ConfigManager.validate_config(config)
+
+    def test_panel_token_accepts_none_and_numbers(self):
+        config = ConfigManager.default_config()
+        server = config["group_configs"][0]["servers"][0]
+
+        server["panel_token"] = None
+        normalized = ConfigManager.validate_config(config)
+        self.assertEqual(normalized["group_configs"][0]["servers"][0]["panel_token"], "")
+
+        server["panel_token"] = 123456
+        normalized = ConfigManager.validate_config(config)
+        self.assertEqual(
+            normalized["group_configs"][0]["servers"][0]["panel_token"], "123456"
+        )
+
+        server["panel_token"] = ["not", "text"]
+        with self.assertRaisesRegex(ConfigValidationError, "面板凭据"):
+            ConfigManager.validate_config(config)
+
 
 if __name__ == "__main__":
     unittest.main()

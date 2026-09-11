@@ -61,6 +61,8 @@ function createEmptyServer() {
     address: "",
     hh_channel_id: "",
     rcon_password: "",
+    panel_url: "",
+    panel_token: "",
   };
 }
 
@@ -100,6 +102,8 @@ function normalizeConfig(rawConfig) {
             address: asText(server.address),
             hh_channel_id: asText(server.hh_channel_id),
             rcon_password: asText(server.rcon_password),
+            panel_url: asText(server.panel_url),
+            panel_token: asText(server.panel_token),
           }))
         : [],
     })),
@@ -543,14 +547,27 @@ function createServerCard(server, groupIndex, serverIndex) {
         <span class="field-hint">用于设置和重启指令，可留空</span>
         <span class="secret-control">
           <input type="password" data-field="rcon_password" autocomplete="new-password" placeholder="RCON password" />
-          <button class="secret-toggle server-secret-toggle" type="button" aria-label="显示或隐藏 RCON 密码">显示</button>
+          <button class="secret-toggle server-secret-toggle" type="button" data-target="rcon_password" aria-label="显示或隐藏 RCON 密码">显示</button>
+        </span>
+      </label>
+      <label class="field">
+        <span class="field-label">面板地址</span>
+        <span class="field-hint">L4D2 面板地址，用于闪传链接上传地图，可留空</span>
+        <input type="text" data-field="panel_url" autocomplete="off" placeholder="http://1.2.3.4:27020" />
+      </label>
+      <label class="field">
+        <span class="field-label">面板凭据</span>
+        <span class="field-hint">面板密码或临时授权码，需与管理面板地址同时填写</span>
+        <span class="secret-control">
+          <input type="password" data-field="panel_token" autocomplete="new-password" placeholder="面板密码 / 授权码" />
+          <button class="secret-toggle server-secret-toggle" type="button" data-target="panel_token" aria-label="显示或隐藏面板凭据">显示</button>
         </span>
       </label>
     </div>
   `;
 
   const preview = card.querySelector(".server-name-preview");
-  const fieldNames = ["name", "address", "hh_channel_id", "rcon_password"];
+  const fieldNames = ["name", "address", "hh_channel_id", "rcon_password", "panel_url", "panel_token"];
   for (const fieldName of fieldNames) {
     const input = card.querySelector(`input[data-field="${fieldName}"]`);
     input.value = server[fieldName] || "";
@@ -565,11 +582,15 @@ function createServerCard(server, groupIndex, serverIndex) {
   }
   preview.textContent = server.name || "未命名服务器";
 
-  card.querySelector(".server-secret-toggle").addEventListener("click", (event) => {
-    const input = card.querySelector('input[data-field="rcon_password"]');
-    const showing = input.type === "text";
-    input.type = showing ? "password" : "text";
-    event.currentTarget.textContent = showing ? "显示" : "隐藏";
+  card.querySelectorAll(".server-secret-toggle").forEach((toggle) => {
+    toggle.addEventListener("click", (clickEvent) => {
+      const target = clickEvent.currentTarget.dataset.target;
+      const input = card.querySelector(`input[data-field="${target}"]`);
+      if (!input) return;
+      const showing = input.type === "text";
+      input.type = showing ? "password" : "text";
+      clickEvent.currentTarget.textContent = showing ? "显示" : "隐藏";
+    });
   });
   card.querySelector(".remove-server").addEventListener("click", () => {
     removeServer(groupIndex, serverIndex);
@@ -629,6 +650,16 @@ function validateConfig() {
         add(`服务器 ${name || serverIndex + 1} 缺少连接地址`, `${prefix}.address`);
       } else if (!isValidServerAddress(address)) {
         add(`服务器 ${name || serverIndex + 1} 的地址格式应为 host 或 host:port`, `${prefix}.address`);
+      }
+
+      const panelUrl = server.panel_url.trim();
+      if (panelUrl) {
+        try {
+          const url = new URL(panelUrl);
+          if (!['http:', 'https:'].includes(url.protocol)) throw new Error("protocol");
+        } catch {
+          add(`服务器 ${name || serverIndex + 1} 的面板地址必须是有效的 HTTP/HTTPS URL`, `${prefix}.panel_url`);
+        }
       }
     });
   });

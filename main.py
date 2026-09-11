@@ -1,6 +1,12 @@
 from astrbot.api.all import *
 from astrbot.api.event import filter
 from astrbot.api.web import error_response, json_response, request
+from astrbot.core.utils.session_waiter import (
+    SessionController,
+    SessionFilter,
+    USER_SESSIONS,
+    session_waiter,
+)
 import os
 import asyncio
 import re
@@ -10,13 +16,44 @@ from .config_manager import (
     ConfigManager,
     ConfigValidationError,
 )
+from .panel_client import (
+    PanelClient,
+    PanelError,
+    SelectionError,
+    build_file_list_lines,
+    filter_supported_items,
+    is_all_selection,
+    parse_number_selection,
+)
 from .workshop_utils import WorkshopTools
 from .heybox_voice import HeyboxVoiceClient
 
 PLUGIN_NAME = "astrbot_plugin_l4d2_query"
 
 
-@register("l4d2_query", "LaoYutang", "L4D2服务器查询插件", "1.4.0")
+class _MemberSessionFilter(SessionFilter):
+    """按“群 + 发送者”区分等待会话，避免同群多人互相打断。"""
+
+    def filter(self, event: AstrMessageEvent) -> str:
+        return f"{event.unified_msg_origin}:{event.get_sender_id()}"
+
+
+async def _cancel_existing_session(session_id: str) -> None:
+    """结束同一会话中尚未完成的等待，并等它清理完毕后再开启新会话。"""
+    existing = USER_SESSIONS.get(session_id)
+    if existing is None:
+        return
+    try:
+        existing.session_controller.stop()
+    except Exception:
+        return
+    for _ in range(20):
+        if USER_SESSIONS.get(session_id) is None:
+            return
+        await asyncio.sleep(0.01)
+
+
+@register("l4d2_query", "LaoYutang", "L4D2服务器查询插件", "1.5.0")
 class L4D2Plugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
@@ -687,3 +724,152 @@ class L4D2Plugin(Star):
             msg += "-" * 20 + "\n"
             
         yield event.plain_result(msg.strip())
+
+    @filter.regex(r"https?://qfile\.qq\.com/q/[A-Za-z0-9_-]+")
+    async def flash_transfer_upload(self, event: AstrMessageEvent, *args, **kwargs):
+        """管理员发送 QQ 闪传链接后，选择服务器与文件并交由面板创建下载任务。"""
+        group_conf = self._get_group_config(event)
+        if not group_conf:
+            return
+        if not self._check_permission(event, group_conf.get("admin_users", [])):
+            return
+
+        match = re.search(r"https?://qfile\.qq\.com/q/[A-Za-z0-9_-]+", event.message_str)
+        if not match:
+            return
+        share_url = match.group(0)
+
+        panel_servers = [
+            server
+            for server in group_conf.get("servers", [])
+            if str(server.get("panel_url", "")).strip()
+            and str(server.get("panel_token", "")).strip()
+        ]
+        if not panel_servers:
+            yield event.plain_result(
+                "本群尚未配置带面板地址和面板凭据的服务器，请先在插件配置页填写后再试。"
+            )
+            return
+
+        session_id = f"{event.unified_msg_origin}:{event.get_sender_id()}"
+        await _cancel_existing_session(session_id)
+
+        server_choice = None
+        selected_indices = None
+
+        @session_waiter(timeout=30)
+        async def select_server(controller: SessionController, wait_event: AstrMessageEvent):
+            nonlocal server_choice
+            try:
+                indices = parse_number_selection(
+                    wait_event.message_str, len(panel_servers), allow_multiple=False
+                )
+            except SelectionError as exc:
+                await wait_event.send(wait_event.plain_result(str(exc)))
+                controller.stop()
+                return
+            server_choice = panel_servers[indices[0]]
+            controller.stop()
+
+        try:
+            lines = [
+                "检测到 QQ 闪传链接，请选择要上传的服务器"
+                "（回复序号，输入其他内容取消，30 秒内有效）："
+            ]
+            for index, server in enumerate(panel_servers, start=1):
+                lines.append(f"{index}. {server.get('name', '')}")
+            yield event.plain_result("\n".join(lines))
+
+            await select_server(event, session_filter=_MemberSessionFilter())
+            if server_choice is None:
+                return
+
+            yield event.plain_result("正在解析闪传链接，请稍候...")
+
+            client = PanelClient(
+                str(server_choice.get("panel_url", "")),
+                str(server_choice.get("panel_token", "")),
+            )
+            try:
+                items = await client.parse_download_link(share_url)
+            except PanelError as exc:
+                yield event.plain_result(f"解析闪传链接失败：{exc}")
+                return
+
+            supported_items = filter_supported_items(items)
+            if not supported_items:
+                yield event.plain_result("未解析到可下载的文件（仅支持 .vpk/.zip/.rar/.7z）。")
+                return
+
+            server_display = str(server_choice.get("name", "")).strip()
+            file_lines = build_file_list_lines(supported_items)
+            yield event.plain_result(
+                f"{server_display} 解析成功，共 {len(supported_items)} 个可下载文件，"
+                "请选择要下载的文件（回复序号，多个用逗号分隔；回复“全部”下载全部；"
+                "输入其他内容取消，30 秒内有效）："
+            )
+            for start in range(0, len(file_lines), 30):
+                yield event.plain_result("\n".join(file_lines[start:start + 30]))
+
+            @session_waiter(timeout=30)
+            async def select_files(controller: SessionController, wait_event: AstrMessageEvent):
+                nonlocal selected_indices
+                if is_all_selection(wait_event.message_str):
+                    selected_indices = list(range(len(supported_items)))
+                    controller.stop()
+                    return
+                try:
+                    selected_indices = parse_number_selection(
+                        wait_event.message_str, len(supported_items)
+                    )
+                except SelectionError as exc:
+                    await wait_event.send(wait_event.plain_result(str(exc)))
+                    controller.stop()
+                    return
+                controller.stop()
+
+            await select_files(event, session_filter=_MemberSessionFilter())
+            if selected_indices is None:
+                return
+
+            results = []
+            for index in selected_indices:
+                item = supported_items[index]
+                filename = str(
+                    item.get("filename") or item.get("title") or "downloaded_file"
+                ).strip()
+                try:
+                    await client.add_download_task(
+                        str(item.get("file_url", "")),
+                        filename,
+                        str(item.get("referer", "")),
+                    )
+                    results.append((filename, True, ""))
+                except PanelError as exc:
+                    results.append((filename, False, str(exc)))
+
+            yield event.plain_result(self._format_flash_transfer_result(results))
+        except TimeoutError:
+            yield event.plain_result("超时取消")
+        finally:
+            # 放在最后调用：等所有回复发送完成后再终止事件传播，避免影响本插件消息的发送
+            event.stop_event()
+
+    @staticmethod
+    def _format_flash_transfer_result(results: list) -> str:
+        """汇总面板下载任务的添加结果。"""
+        added = [name for name, ok, _ in results if ok]
+        failed = [(name, message) for name, ok, message in results if not ok]
+
+        lines = []
+        if added:
+            lines.append(f"已提交 {len(added)} 个下载任务：")
+            lines.extend(f"- {name}" for name in added)
+        if failed:
+            if lines:
+                lines.append("")
+            lines.append(f"提交失败 {len(failed)} 个：")
+            lines.extend(f"- {name}：{message}" for name, message in failed)
+        if not lines:
+            lines.append("没有提交任何下载任务。")
+        return "\n".join(lines)
