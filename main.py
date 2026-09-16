@@ -53,7 +53,7 @@ async def _cancel_existing_session(session_id: str) -> None:
         await asyncio.sleep(0.01)
 
 
-@register("l4d2_query", "LaoYutang", "L4D2服务器查询插件", "1.5.0")
+@register("l4d2_query", "LaoYutang", "L4D2服务器查询插件", "1.5.1")
 class L4D2Plugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
