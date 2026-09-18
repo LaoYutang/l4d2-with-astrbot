@@ -1,6 +1,6 @@
 import aiohttp
 import re
-import logging
+from astrbot.api import logger
 
 class WorkshopTools:
     def __init__(self):
@@ -9,7 +9,6 @@ class WorkshopTools:
             "Content-Type": "application/json",
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         }
-        self.logger = logging.getLogger("l4d2_plugin.workshop")
 
     async def process_url(self, url: str):
         """
@@ -73,15 +72,15 @@ class WorkshopTools:
             async with aiohttp.ClientSession() as session:
                 async with session.post(self.api_url, json=payload, headers=self.headers, timeout=30) as resp:
                     if resp.status != 200:
-                        self.logger.error(f"API returned status {resp.status}")
+                        logger.error(f"API returned status {resp.status}")
                         try:
                             err_text = await resp.text()
-                            self.logger.error(f"API Error body: {err_text}")
+                            logger.error(f"API Error body: {err_text}")
                         except:
                             pass
                         return None
                     # 强制解析 JSON，忽略 Content-Type (API 有时返回 text/plain)
                     return await resp.json(content_type=None)
         except Exception as e:
-            self.logger.error(f"Error calling downloader API: {repr(e)}")
+            logger.error(f"Error calling downloader API: {repr(e)}")
             return None

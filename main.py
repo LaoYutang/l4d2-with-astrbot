@@ -536,14 +536,14 @@ class L4D2Plugin(Star):
                 elif hasattr(sender, "user_id"):
                     user_id = getattr(sender, "user_id")
             
-            print(f"[L4D2Plugin] Debug - User ID: {user_id}, Admin List: {admin_list}")
+            logger.debug(f"[L4D2Plugin] Debug - User ID: {user_id}, Admin List: {admin_list}")
             
             if user_id and str(user_id) in [str(uid) for uid in admin_list]:
                 return True
             
             return False
         except Exception as e:
-            print(f"[L4D2Plugin] Error checking permission: {e}")
+            logger.warning(f"[L4D2Plugin] Error checking permission: {e}")
             return False
 
     @filter.regex(r"^设置\s*(.+)$")
@@ -626,8 +626,7 @@ class L4D2Plugin(Star):
         except asyncio.TimeoutError:
             result = "操作超时：连接服务器耗时过长，请检查服务器状态或网络连接。"
         except Exception as e:
-            import traceback
-            traceback.print_exc()
+            logger.error(f"执行 RCON 指令出错: {type(e).__name__} - {e}", exc_info=True)
             result = f"执行出错: {type(e).__name__} - {e}"
         
         yield event.plain_result(result)
@@ -637,7 +636,7 @@ class L4D2Plugin(Star):
         """重启指定服务器。用法：重启 [服务器名]"""
         # 打印调试信息，查看是否有额外参数
         if args:
-            print(f"[L4D2Plugin] Debug - Restart args: {args}")
+            logger.debug(f"[L4D2Plugin] Debug - Restart args: {args}")
 
         group_conf = self._get_group_config(event)
         if not group_conf:
